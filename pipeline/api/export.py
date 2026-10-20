@@ -211,11 +211,11 @@ def to_docx(markdown: str, title: str = "", kind: str = "", photo: bytes | None 
             p.paragraph_format.space_after = Pt(2)
         elif kind == "h2":
             p = doc.add_paragraph(); add_runs(p, text, size=12, color=ACCENT, bold_all=True)
-            p.paragraph_format.space_before = Pt(10); p.paragraph_format.space_after = Pt(4)
+            p.paragraph_format.space_before = Pt(10); p.paragraph_format.space_after = Pt(4); p.paragraph_format.keep_with_next = True
             bottom_border(p)
         elif kind == "h3":
             p = doc.add_paragraph(); add_runs(p, text, size=11, color=INK, bold_all=True)
-            p.paragraph_format.space_before = Pt(6); p.paragraph_format.space_after = Pt(2)
+            p.paragraph_format.space_before = Pt(6); p.paragraph_format.space_after = Pt(2); p.paragraph_format.keep_with_next = True
         elif kind == "bullet":
             p = doc.add_paragraph(style="List Bullet"); add_runs(p, text)
         elif kind == "num":
@@ -265,8 +265,8 @@ def to_pdf(markdown: str, title: str = "", kind: str = "", photo: bytes | None =
 
     base = ParagraphStyle("base", fontName="Helvetica", fontSize=10, leading=14, textColor=ink, alignment=TA_LEFT, spaceAfter=4)
     h1 = ParagraphStyle("h1", parent=base, fontName="Helvetica-Bold", fontSize=19, leading=23, spaceAfter=2)
-    h2 = ParagraphStyle("h2", parent=base, fontName="Helvetica-Bold", fontSize=11.5, leading=15, textColor=accent, spaceBefore=10, spaceAfter=2)
-    h3 = ParagraphStyle("h3", parent=base, fontName="Helvetica-Bold", fontSize=10.5, leading=14, spaceBefore=6, spaceAfter=1)
+    h2 = ParagraphStyle("h2", parent=base, fontName="Helvetica-Bold", fontSize=11.5, leading=15, textColor=accent, spaceBefore=10, spaceAfter=2, keepWithNext=1)
+    h3 = ParagraphStyle("h3", parent=base, fontName="Helvetica-Bold", fontSize=10.5, leading=14, spaceBefore=6, spaceAfter=1, keepWithNext=1)
 
     def markup(text: str) -> str:
         out = []

@@ -293,6 +293,12 @@ h3.page { font: 800 clamp(26px, 5vw, 34px)/1.1 var(--display); letter-spacing: -
 .photo-row .none { width: 44px; height: 44px; border-radius: 10px; background: var(--line); display: grid; place-items: center; color: var(--muted); font-size: 12px; }
 .photo-row label.chk { display: flex; align-items: center; gap: 6px; margin-left: auto; cursor: pointer; }
 .paper .pphoto { float: right; width: 84px; height: 84px; border-radius: 8px; object-fit: cover; margin: 0 0 8px 14px; }
+.pform { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+.pform label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); }
+.pform input, .pform select { display: block; width: 100%; margin-top: 4px; font: inherit; font-weight: 400; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.pform .full { grid-column: 1 / -1; }
+@media (max-width: 560px) { .pform { grid-template-columns: 1fr; } }
 .tools { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 12px; }
 .note { color: var(--muted); font-size: 13px; padding-top: 10px; }
 .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 90px); transform: translateX(-50%); background: var(--ink); color: var(--bg);
@@ -440,7 +446,7 @@ h3.page { font: 800 clamp(26px, 5vw, 34px)/1.1 var(--display); letter-spacing: -
   const state = {
     file: null, cvText: "", cvSkills: [], cats: {}, total: 0,
     offers: [], matching: 0, facets: {}, dist: {}, q: {}, filtersOpen: false, idx: 0, scale: 1, mode: store.get("ds_mode", "cards"),
-    saved: store.get("ds_saved", []), photo: store.get("ds_photo", ""), photoOn: store.get("ds_photo_on", true), tab: "discover", busy: false, error: "", health: null,
+    saved: store.get("ds_saved", []), photo: store.get("ds_photo", ""), profile: store.get("ds_profile", {}), photoOn: store.get("ds_photo_on", true), tab: "discover", busy: false, error: "", health: null,
   };
   const pct = (o) => Math.max(0, Math.min(100, Math.round((Number(o.score) || 0) * state.scale)));
   const tier = (p) => p >= 70 ? "hi" : p >= 40 ? "mid" : "lo";
@@ -480,7 +486,7 @@ h3.page { font: 800 clamp(26px, 5vw, 34px)/1.1 var(--display); letter-spacing: -
   }
   async function runAssist(dedupKey, mode) {
     const r = await fetch("/assist", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dedup_key: dedupKey, mode, cv_text: state.cvText }) });
+      body: JSON.stringify({ dedup_key: dedupKey, mode, cv_text: state.cvText, profile: state.profile }) });
     if (!r.ok) throw await apiError(r);
     return r.json();
   }
@@ -836,12 +842,12 @@ h3.page { font: 800 clamp(26px, 5vw, 34px)/1.1 var(--display); letter-spacing: -
       catch (e) { toast(errMsg(e)); }
     });
     function draw() {
-      row.replaceChildren(input,
+      row.replaceChildren(...[input,
         state.photo ? h("img", { src: state.photo, alt: "Votre photo" }) : h("div", { class: "none", "aria-hidden": "true" }, "photo"),
         h("button", { class: "mini", onclick: () => input.click() }, state.photo ? "Changer" : "Ajouter ma photo (facultatif)"),
         state.photo ? h("button", { class: "mini", onclick: () => { state.photo = ""; store.set("ds_photo", ""); draw(); onChange(); } }, "Supprimer") : null,
         state.photo ? h("label", { class: "chk" }, h("input", { type: "checkbox", checked: state.photoOn ? "checked" : null,
-          onchange: (e) => { state.photoOn = e.target.checked; store.set("ds_photo_on", state.photoOn); onChange(); } }), "Inclure sur le document") : null);
+          onchange: (e) => { state.photoOn = e.target.checked; store.set("ds_photo_on", state.photoOn); onChange(); } }), "Inclure sur le document") : null].filter(Boolean));
     }
     draw(); return row;
   }
@@ -891,6 +897,9 @@ h3.page { font: 800 clamp(26px, 5vw, 34px)/1.1 var(--display); letter-spacing: -
         const box = h("div", { class: "md " + (isDoc ? "paper" : "plain") }); renderValue(data.result, box); out.append(box);
         const syncPhoto = () => { box.querySelector(".pphoto")?.remove(); if (isDoc && state.photo && state.photoOn) box.prepend(h("img", { class: "pphoto", src: state.photo, alt: "" })); };
         syncPhoto();
+        if (isDoc && !state.profile.last_name && !state.profile.first_name)
+          out.append(h("div", { class: "callout" }, h("strong", {}, "Nom lu dans votre CV. "), "Pour un en-tête fiable, renseignez vos informations dans ",
+            h("a", { href: "#", onclick: (e) => { e.preventDefault(); close(); showTab("profile"); } }, "Mon profil"), "."));
         out.append(h("p", { class: "note" }, "Relisez toujours avant d’envoyer : l’IA peut se tromper ou reformuler un fait."));
         tools.append(tool("Copier le texte", async () => { await navigator.clipboard.writeText(plain); toast("Texte copié"); }));
         if (isDoc) {
@@ -962,9 +971,29 @@ h3.page { font: 800 clamp(26px, 5vw, 34px)/1.1 var(--display); letter-spacing: -
   function hbar(label, value, max, cls, suffix) {
     return h("div", { class: "hb " + (cls || "") }, h("span", {}, label), h("div", { class: "t" }, h("i", { style: `width:${Math.min(100, Math.max(6, (value / max) * 100))}%` })), h("span", {}, suffix || value));
   }
+  const PFIELDS = [["first_name", "Prénom", "given-name", "text"], ["last_name", "Nom", "family-name", "text"], ["email", "E-mail", "email", "email"],
+    ["phone", "Téléphone", "tel", "tel"], ["address", "Adresse (numéro et rue)", "street-address", "text", "full"], ["postal_code", "Code postal", "postal-code", "text"],
+    ["city", "Ville", "address-level2", "text"], ["linkedin", "LinkedIn", "url", "text"], ["website", "Site, GitHub ou portfolio", "url", "text"],
+    ["title", "Titre professionnel actuel (facultatif)", "organization-title", "text", "full"]];
+  function identityPanel() {
+    const save = () => { store.set("ds_profile", state.profile); cache.clear(); };
+    const inputs = PFIELDS.map(([k, label, ac, type, full]) => {
+      const inp = h("input", { type, autocomplete: ac, maxlength: "120", value: state.profile[k] || "" });
+      inp.addEventListener("change", () => { const v = inp.value.trim(); if (v) state.profile[k] = v; else delete state.profile[k]; save(); toast("Enregistré"); });
+      return h("label", { class: full ? "full" : "" }, label, inp);
+    });
+    const lvl = h("select", {}, [["", "Calcul automatique à partir de mon CV"], ["junior", "Junior (moins de 3 ans)"], ["confirmé", "Confirmé (3 à 6 ans)"], ["senior", "Senior (plus de 6 ans)"]]
+      .map(([v, t]) => h("option", { value: v, selected: (state.profile.level || "") === v ? "selected" : null }, t)));
+    lvl.addEventListener("change", () => { if (lvl.value) state.profile.level = lvl.value; else delete state.profile.level; save(); toast("Enregistré"); });
+    return h("div", { class: "panel", style: "margin-bottom:14px" }, h("h3", {}, "Mes informations pour les documents"),
+      h("p", { class: "hint", style: "font-size:13px;margin:0 0 12px" }, "Elles sont reprises à l’identique dans l’en-tête de vos CV et lettres. Elles restent dans votre navigateur ; elles ne sont envoyées qu’avec une demande à l’assistant. Tout est facultatif."),
+      h("div", { class: "pform" }, inputs, h("label", { class: "full" }, "Niveau d’expérience annoncé dans les documents", lvl)),
+      h("div", { style: "margin-top:12px" }, photoRow(() => {})),
+      h("p", { style: "margin-top:12px" }, h("button", { class: "mini", onclick: () => { state.profile = {}; save(); renderProfile(); toast("Informations effacées"); } }, "Effacer mes informations")));
+  }
   function renderProfile() {
     const v = $("#view-profile"); v.replaceChildren();
-    const wrap = h("div", { class: "wrap" }, h("h3", { class: "page" }, "Mon profil"));
+    const wrap = h("div", { class: "wrap" }, h("h3", { class: "page" }, "Mon profil"), identityPanel());
     if (!state.cvSkills.length) {
       wrap.append(h("div", { class: "empty" }, h("h2", {}, "Pas encore de CV analysé"), h("p", {}, "Déposez votre CV pour voir vos compétences et celles à développer."),
         h("button", { class: "btn primary", onclick: () => showTab("discover") }, "Déposer mon CV")));

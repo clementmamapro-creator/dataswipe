@@ -17,6 +17,7 @@ locaux et gratuits. /assist est protégé par un cache et des limites (voir limi
 
 from __future__ import annotations
 
+import json
 import logging
 import tempfile
 import time
@@ -34,6 +35,7 @@ from pydantic import BaseModel, Field
 from ..ai.coaching import generate_coaching
 from ..ai.cover_letter import generate_cover_letter
 from ..ai.cv_adapter import adapt_cv
+from ..ai import profile as user_profile
 from ..matching.cv_parser import parse_cv
 from ..matching.extract_skills import extract_skills, get_offer_skills
 from ..matching.scoring import compute_match_score
@@ -198,13 +200,17 @@ def search(payload: SearchRequest) -> SearchResponse:
                           results=page, distribution=dist, skill_categories=cats)
 
 
+class AssistIn(AssistRequest):
+    profile: Optional[dict] = None     # informations saisies dans « Mon profil » (nom, adresse, contacts…)
+
+
 class AssistOut(AssistResponse):
     # compétences citées dans le texte généré mais absentes du CV d'origine (à vérifier)
     added_skills: list[str] = []
 
 
 @app.post("/assist", response_model=AssistOut)
-def assist(payload: AssistRequest, request: Request) -> AssistOut:
+def assist(payload: AssistIn, request: Request) -> AssistOut:
     """Coaching, lettre de motivation, ou adaptation CV pour une offre précise
     (identifiée par son dedup_key, renvoyé par /match)."""
     if payload.mode not in ("coaching", "letter", "adapt"):
@@ -216,7 +222,8 @@ def assist(payload: AssistRequest, request: Request) -> AssistOut:
     if offer is None:
         raise HTTPException(status_code=404, detail="Offre introuvable (dedup_key invalide)")
 
-    key = limits.cache_key(payload.dedup_key, payload.mode, payload.cv_text)
+    user = user_profile.clean_user(payload.profile)
+    key = limits.cache_key(payload.dedup_key, payload.mode, payload.cv_text + "|" + json.dumps(user, sort_keys=True, ensure_ascii=False))
     cached = limits.cache_get(key)
     if cached is not None:
         return cached
@@ -232,10 +239,16 @@ def assist(payload: AssistRequest, request: Request) -> AssistOut:
         response = AssistResponse(mode="coaching", result=generate_coaching(offer, m.missing_skills), score=m.score)
     else:
         limits.check_and_count(ip)
-        if payload.mode == "letter":
-            response = AssistResponse(mode="letter", result=generate_cover_letter(payload.cv_text, offer))
-        else:
-            response = AssistResponse(mode="adapt", result=adapt_cv(payload.cv_text, offer))
+        try:
+            if payload.mode == "letter":
+                response = AssistResponse(mode="letter", result=generate_cover_letter(payload.cv_text, offer, user))
+            else:
+                response = AssistResponse(mode="adapt", result=adapt_cv(payload.cv_text, offer, user))
+        except HTTPException:
+            raise
+        except Exception as e:  # noqa: BLE001 — message lisible dans l'interface au lieu d'une erreur 500 muette
+            log.exception("assist %s : échec", payload.mode)
+            raise HTTPException(status_code=502, detail=f"L'assistant n'a pas pu répondre ({type(e).__name__} : {str(e)[:160]})")
 
     out = AssistOut(**response.model_dump())
     if payload.mode in ("letter", "adapt") and isinstance(response.result, str):

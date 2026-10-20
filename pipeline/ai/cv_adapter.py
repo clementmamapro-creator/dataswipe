@@ -21,7 +21,15 @@ RÈGLES ABSOLUES (leur violation rend le document inutilisable) :
 3. TITRE : l'en-tête (nom + poste visé) est ajouté par le système. Ne l'écris pas. Le poste visé est le titre de l'offre :
    ne le transforme pas en titre que le candidat aurait occupé.
 4. FORME : français soigné, orthographe vérifiée, aucun mot inventé. Pas d'emojis. Puces avec « - ».
-   Une page et demie maximum. Verbes d'action, résultats seulement s'ils figurent dans le CV.
+   Style CV français : phrases nominales ou verbes d'action à l'infinitif, JAMAIS de « je », « j' », « mon ».
+   Longueur : 1 page pour un profil junior ou confirmé (2 pages au maximum au-delà de 6 ans). Pour tenir : 8 à 10
+   compétences par catégorie au plus et seulement celles utiles à l'offre ; 3 à 4 puces par poste récent, 1 à 2 pour
+   les postes anciens ou éloignés de l'offre (regroupés si besoin). Le document doit être COMPLET et terminé :
+   toutes les sections, jusqu'à la formation, même abrégées.
+5. DIPLÔMES : n'écris « titulaire », « diplômé » ou « master » que si le CV établit que le diplôme est obtenu. Un diplôme
+   en cours ou attendu s'écrit « Mastère en cours (diplôme attendu en <date du CV>) ».
+6. CHRONOLOGIE : respecte l'ordre antéchronologique et les dates du CV ; ne mélange pas les employeurs (ne dis pas
+   « puis en agence » pour une expérience antérieure) ; deux postes simultanés restent présentés comme tels.
 
 STRUCTURE (Markdown) :
 ## Profil — 2 à 3 phrases honnêtes : niveau réel, domaine, ce qui correspond à l'offre.
@@ -40,12 +48,14 @@ def _strip_header(text: str) -> str:
     return "\n".join(lines).strip()
 
 
-def adapt_cv(cv_text: str, offer) -> str:
-    f = profile.facts(cv_text, offer)
+def adapt_cv(cv_text: str, offer, user: dict | None = None) -> str:
+    user = profile.clean_user(user)
+    f = profile.facts(cv_text, offer, user)
     desc = (profile._get(offer, "description", "desc", "snippet") or "")[:6000]
-    user = f"""FAITS CALCULÉS (fiables, à respecter) :
-- Nom : {f['name'] or 'non détecté'}
-- Expérience professionnelle détectée : environ {f['years']} an(s) — {f['wording']}
+    prompt = f"""FAITS CALCULÉS (fiables, à respecter) :
+- Nom (imposé, à utiliser tel quel) : {f['name'] or 'non détecté'}
+- Titre professionnel actuel indiqué par le candidat : {user.get('title') or 'non précisé'}
+- Expérience professionnelle détectée : {f['years_label']} — {f['wording']}
 - Poste visé : {f['target']} chez {f['company'] or 'entreprise non précisée'}
 
 OFFRE :
@@ -55,5 +65,5 @@ CV D'ORIGINE :
 {cv_text}
 
 Rédige le CV adapté (sans l'en-tête nom/poste) en respectant toutes les règles."""
-    body = _strip_header(_llm.complete(SYSTEM, user, max_tokens=2800, temperature=0.2))
-    return profile.cv_header(f, profile.contacts(cv_text)) + "\n" + body
+    body = _strip_header(_llm.complete(SYSTEM, prompt, max_tokens=6000, temperature=0.2))
+    return profile.cv_header(f, profile.contacts(cv_text, user)) + "\n" + body

@@ -24,12 +24,14 @@ RÈGLES ABSOLUES :
 6. RELECTURE : accords (« ma rigueur », « mes connaissances … constituent »), conjugaison et ponctuation parfaits."""
 
 
-def generate_cover_letter(cv_text: str, offer) -> str:
-    f = profile.facts(cv_text, offer)
+def generate_cover_letter(cv_text: str, offer, user: dict | None = None) -> str:
+    user = profile.clean_user(user)
+    f = profile.facts(cv_text, offer, user)
     desc = (profile._get(offer, "description", "desc", "snippet") or "")[:6000]
-    user = f"""FAITS CALCULÉS :
-- Nom : {f['name'] or 'non détecté'}
-- Expérience : environ {f['years']} an(s) — {f['wording']}
+    prompt = f"""FAITS CALCULÉS :
+- Nom du candidat (imposé, pour la signature) : {f['name'] or 'non détecté'}
+- Titre professionnel actuel indiqué par le candidat : {user.get('title') or 'non précisé'}
+- Expérience : {f['years_label']} — {f['wording']}
 - Poste visé : {f['target']} chez {f['company'] or 'entreprise non précisée'}
 
 OFFRE :
@@ -39,5 +41,7 @@ CV :
 {cv_text}
 
 Rédige la lettre (corps uniquement, avec signature)."""
-    body = _llm.complete(SYSTEM, user, max_tokens=1400, temperature=0.4).strip()
-    return profile.letter_header(f, profile.contacts(cv_text), offer) + "\n" + body
+    body = _llm.complete(SYSTEM, prompt, max_tokens=3000, temperature=0.4).strip()
+    if f["name"] and f["name"].lower() not in "\n".join(body.split("\n")[-3:]).lower():
+        body += f"\n\n{f['name']}"   # la signature est garantie par le code, pas laissée à l'IA
+    return profile.letter_header(f, profile.contacts(cv_text, user), offer) + "\n" + body

@@ -113,6 +113,7 @@ def candidate_name(cv_text: str) -> str:
 def clean_title(title: str, strip_level: bool = False) -> str:
     """Intitulé de l'offre sans « (H/F) », « F/H », ni mention de niveau absurde pour le candidat."""
     t = re.sub(r"\(?\s*\b[HF]\s*/\s*[HF]\b\s*\)?|\(?\s*\bH\s*/\s*F\b\s*\)?|\(?\s*\bF\s*/\s*H\b\s*\)?", "", title or "", flags=re.I)
+    t = re.sub(r"\b(ai|bi|sql|etl|it|ia)\b", lambda m: m.group(1).upper(), t, flags=re.I)   # « Data & ai » -> « Data & AI »
     if strip_level:
         t = re.sub(r"\b(senior|s[ée]nior|confirm[ée]e?|exp[ée]riment[ée]e?|lead)\b", "", t, flags=re.I)
     return re.sub(r"\s{2,}", " ", t).strip(" -–—|,")
@@ -126,7 +127,38 @@ def _get(offer, *keys) -> str:
     return ""
 
 
-def facts(cv_text: str, offer) -> dict:
+USER_KEYS = ("first_name", "last_name", "email", "phone", "address", "postal_code", "city", "linkedin", "website", "title", "level")
+LEVELS = {"junior": "profil junior / en début de carrière (alternance et stages inclus)",
+          "confirmé": "profil confirmé de 3 à 6 ans d'expérience (jamais « senior »)",
+          "senior": "profil expérimenté de plus de 6 ans"}
+
+
+def clean_user(user) -> dict:
+    """Informations saisies par l'utilisateur dans « Mon profil » : champs connus, texte court, sans vide."""
+    out: dict = {}
+    if not isinstance(user, dict):
+        return out
+    for k in USER_KEYS:
+        v = user.get(k)
+        if isinstance(v, str):
+            v = re.sub(r"[\r\n\t]+", " ", v).strip()[:120]
+            if v:
+                out[k] = v
+    if out.get("level") not in LEVELS:
+        out.pop("level", None)
+    if out.get("email") and not re.fullmatch(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", out["email"]):
+        out.pop("email")
+    return out
+
+
+def user_name(user: dict) -> str:
+    first, last = user.get("first_name", ""), user.get("last_name", "")
+    if not (first or last):
+        return ""
+    return f"{first} {last.upper()}".strip()
+
+
+def facts(cv_text: str, offer, user: dict | None = None) -> dict:
     total = experience_months(cv_text)
     months = experience_months(cv_text, relevant_only=True)
     if months == 0:   # pertinence non détectée : on retient la durée totale plutôt que de sous-estimer
@@ -136,10 +168,14 @@ def facts(cv_text: str, offer) -> dict:
         level, wording = "indéterminé", "durée d'expérience non déterminée : n'indique AUCUN niveau (junior, senior…) ni nombre d'années ; reste factuel"
     if total - months >= 12:
         wording += f" ; environ {round((total - months) / 12, 1)} an(s) d'expérience professionnelle dans d'autres domaines (à présenter comme compétences transversales, pas comme expérience data)"
+    user = user or {}
+    if user.get("level"):   # niveau choisi par l'utilisateur : prioritaire sur le calcul automatique
+        level, wording = user["level"], LEVELS[user["level"]]
     return {
-        "name": candidate_name(cv_text),
+        "name": user_name(user) or candidate_name(cv_text),
         "months": months,
         "years": round(months / 12, 1),
+        "years_label": f"environ {round(months / 12, 1)} an(s)" if months else "non déterminée",
         "level": level,
         "wording": wording,
         "target": clean_title(_get(offer, "title", "titre", "intitule", "job_title"), strip_level=True),
@@ -160,7 +196,7 @@ def header_markdown(f: dict, include_company: bool = True) -> str:
 MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
 
 
-def contacts(cv_text: str) -> dict:
+def contacts(cv_text: str, user: dict | None = None) -> dict:
     """E-mail, téléphone, adresse/ville, LinkedIn lus dans le CV (jamais inventés : vides si absents)."""
     t = cv_text.replace("\r", "")
     email = re.search(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", t)
@@ -177,8 +213,29 @@ def contacts(cv_text: str) -> dict:
             mm = re.search(r"(?:·|\||•|-)\s*(Paris|Lyon|Marseille|Toulouse|Nantes|Bordeaux|Lille|Rennes|Strasbourg|Montpellier|Nice)\b", line)
             if mm:
                 city = mm.group(1); break
-    return {"email": email.group(0) if email else "", "phone": re.sub(r"\s+", " ", phone.group(0)).strip() if phone else "",
-            "linkedin": linkedin.group(0) if linkedin else "", "address": address, "city": city}
+    c = {"email": email.group(0) if email else "", "phone": re.sub(r"\s+", " ", phone.group(0)).strip() if phone else "",
+         "linkedin": linkedin.group(0) if linkedin else "", "address": address, "city": city, "website": ""}
+    c["phone"] = format_phone(c["phone"])
+    u = user or {}
+    for k in ("email", "phone", "linkedin", "website", "city"):   # la saisie de l'utilisateur prime sur la lecture du CV
+        if u.get(k):
+            c[k] = u[k]
+    c["phone"] = format_phone(c["phone"])
+    if u.get("address") or u.get("postal_code"):
+        c["address"] = ", ".join(x for x in (u.get("address", ""), " ".join(x for x in (u.get("postal_code", ""), u.get("city", "")) if x)) if x)
+    elif u.get("city") and not c["address"]:
+        c["address"] = u["city"]
+    return c
+
+
+def format_phone(p: str) -> str:
+    """06 12 34 56 78 / +33 6 12 34 56 78 : espaces par paires, sans toucher aux numéros non français."""
+    d = re.sub(r"[^\d+]", "", p or "")
+    if re.fullmatch(r"0\d{9}", d):
+        return " ".join(d[i:i + 2] for i in range(0, 10, 2))
+    if re.fullmatch(r"\+33\d{9}", d):
+        return "+33 " + d[3] + " " + " ".join(d[i:i + 2] for i in range(4, 12, 2))
+    return (p or "").strip()
 
 
 def french_date(d: date | None = None) -> str:
@@ -198,7 +255,7 @@ def cv_header(f: dict, c: dict) -> str:
     out = f"# {parts[0]}\n"
     if f["target"]:
         out += f"\n**{f['target']}" + (f" — {f['company']}" if f["company"] else "") + "**\n"
-    line = " · ".join(x for x in (c["city"] or c["address"], c["phone"], c["email"], c["linkedin"]) if x)
+    line = " · ".join(x for x in (c["city"] or c["address"], c["phone"], c["email"], c["linkedin"], c.get("website", "")) if x)
     if line:
         out += f"\n{line}\n"
     return out
