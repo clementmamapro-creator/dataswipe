@@ -1,0 +1,47 @@
+# --- Secrets (ne JAMAIS publier) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Données et exports (volumineux, régénérables, potentiellement personnels) ---
+powerbi_export/
+*.csv
+*.sql
+!init*.sql
+!schema*.sql
+*.dump
+*.pbix
+.skills_cache.json
+data/
+exports/
+
+# --- Airflow / Docker ---
+logs/
+airflow/logs/
+airflow/airflow.db
+pgdata/
+*.pid
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# --- Système / éditeurs ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+
+# --- CV et documents personnels de test ---
+CV_test*
+Lettre_*
+CV_*.pdf
+CV_*.docx

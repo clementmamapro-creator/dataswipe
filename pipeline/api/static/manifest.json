@@ -1,0 +1,16 @@
+{
+  "name": "DataSwipe",
+  "short_name": "DataSwipe",
+  "description": "Trouvez les offres data qui correspondent à votre CV.",
+  "lang": "fr",
+  "start_url": "/app/",
+  "scope": "/app/",
+  "display": "standalone",
+  "background_color": "#E9ECF5",
+  "theme_color": "#2F3BFF",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

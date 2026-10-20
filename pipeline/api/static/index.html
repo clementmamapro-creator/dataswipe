@@ -1,0 +1,1000 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2F3BFF">
+<meta name="description" content="DataSwipe compare votre CV aux offres data collectées et classe celles qui vous correspondent.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="DataSwipe">
+<title>DataSwipe</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #E9ECF5;
+  --side: #E0E4F2;
+  --card: #FFFFFF;
+  --ink: #11142B;
+  --muted: #5B6180;
+  --line: #D5D9E8;
+  --accent: #2F3BFF;
+  --accent-ink: #FFFFFF;
+  --ok: #0E9F6E;
+  --gap: #E8590C;
+  --shadow: 0 1px 2px rgba(17,20,43,.06), 0 14px 34px -14px rgba(17,20,43,.24);
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0D1022; --side: #11152D; --card: #171B36; --ink: #EEF0FF; --muted: #9AA1C8; --line: #2A3057;
+    --accent: #7C86FF; --accent-ink: #0D1022; --ok: #34D399; --gap: #FB923C;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 14px 34px -14px rgba(0,0,0,.65);
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 400 16px/1.45 var(--body); overflow: hidden; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3, h4, p { margin: 0; }
+
+/* ---------- Structure : une colonne sur mobile, barre latérale + contenu dès 960 px ---------- */
+.app { display: grid; height: 100dvh; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "brand status" "main main" "nav nav"; }
+.brand { grid-area: brand; display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top) + 12px) 20px 8px; }
+.brand img { width: 34px; height: 34px; border-radius: 9px; display: block; }
+.brand b { font: 800 22px/1 var(--display); letter-spacing: -.02em; }
+.brand b span { color: var(--accent); }
+.status { grid-area: status; display: flex; align-items: center; gap: 7px; padding: calc(env(safe-area-inset-top) + 12px) 20px 8px 0;
+  font-size: 13px; color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+.dot.on { background: var(--ok); } .dot.off { background: var(--gap); } .dot.wait { background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .3; } }
+main { grid-area: main; position: relative; min-height: 0; }
+.sidefill { display: none; }
+nav { grid-area: nav; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+  padding: 8px 12px calc(env(safe-area-inset-bottom) + 8px); border-top: 1px solid var(--line); background: var(--bg); }
+nav button { background: none; border: 0; padding: 9px 4px; border-radius: 12px; color: var(--muted); font: 600 13px/1.2 var(--body);
+  display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative; }
+nav button svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+nav button[aria-selected="true"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 11%, transparent); }
+.badge { font-size: 11px; font-weight: 700; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent);
+  color: var(--accent-ink); display: inline-flex; align-items: center; justify-content: center; }
+.badge[hidden] { display: none; }
+nav .badge { position: absolute; top: 3px; left: calc(50% + 6px); }
+
+.view { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px clamp(16px, 3vw, 40px) 24px; }
+.view[hidden] { display: none; }
+.wrap { max-width: 1180px; margin: 0 auto; }
+
+@media (min-width: 960px) {
+  .app { grid-template-columns: 252px minmax(0, 1fr); grid-template-rows: auto auto 1fr auto;
+    grid-template-areas: "brand main" "nav main" "fill main" "status main"; }
+  .brand, nav, .sidefill, .status { background: var(--side); }
+  .brand { padding: 28px 24px 18px; } .brand img { width: 42px; height: 42px; border-radius: 11px; } .brand b { font-size: 25px; }
+  .sidefill { display: block; grid-area: fill; }
+  nav { grid-template-columns: 1fr; gap: 4px; padding: 0 14px; border: 0; }
+  nav button { flex-direction: row; justify-content: flex-start; gap: 12px; padding: 12px 14px; font-size: 15px; }
+  nav .badge { position: static; margin-left: auto; }
+  .status { padding: 16px 24px 22px; border-top: 1px solid var(--line); }
+  main { box-shadow: -1px 0 0 var(--line); }
+  .view { padding-top: 24px; }
+}
+
+/* ---------- Boutons, champs ---------- */
+.btn { border: 0; border-radius: 14px; padding: 14px 20px; font: 700 16px/1 var(--display); letter-spacing: -.01em; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); }
+.btn.primary:disabled { opacity: .4; cursor: not-allowed; }
+.btn.ghost { background: transparent; border: 1px solid var(--line); }
+.btn.block { width: 100%; }
+.mini { border: 1px solid var(--line); background: transparent; border-radius: 10px; padding: 8px 13px; font-size: 14px; font-weight: 600;
+  text-decoration: none; color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
+.mini.p { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.mini.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, var(--line)); }
+select { font: inherit; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.err { color: var(--gap); font-weight: 500; margin-top: 14px; }
+.hint { color: var(--muted); }
+
+/* ---------- Accueil / dépôt du CV ---------- */
+.hero { display: grid; gap: 20px; align-items: center; min-height: 100%; align-content: start; padding-top: 4px; }
+.hero h1 { font: 800 clamp(32px, 9vw, 54px)/1.0 var(--display); letter-spacing: -.035em; margin: 6px 0 12px; max-width: 13ch; }
+.hero .lead { color: var(--muted); margin-bottom: 22px; max-width: 40ch; font-size: 17px; }
+.art { width: 100%; max-width: 380px; margin: 0 auto; }
+.art svg { width: 100%; height: auto; display: block; overflow: visible; }
+.art .c1, .art .c2, .art .c3 { animation: deal .7s cubic-bezier(.2,.8,.2,1) both; }
+.art .c2 { animation-delay: .1s; } .art .c3 { animation-delay: .2s; }
+@keyframes deal { from { transform: translateY(40px); opacity: 0; } }
+.art .sf { fill: var(--card); } .art .sk { fill: var(--line); } .art .ink { fill: var(--ink); }
+@media (min-width: 760px) { .hero { grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 48px; align-content: center; } .art { max-width: 460px; } }
+@media (max-width: 759px) { .art { max-width: 270px; order: -1; } }
+.drop { display: block; border: 2px dashed var(--line); border-radius: 20px; padding: 24px 18px; text-align: center; background: var(--card);
+  cursor: pointer; transition: border-color .15s, background .15s; position: relative; }
+.drop:hover, .drop.over { border-color: var(--accent); }
+.drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.drop strong { display: block; font: 700 18px/1.2 var(--display); margin-bottom: 4px; }
+.drop small { color: var(--muted); }
+.drop.has { border-style: solid; border-color: var(--accent); }
+.row { display: flex; align-items: center; gap: 12px; margin: 16px 0; flex-wrap: wrap; }
+.row label { color: var(--muted); font-size: 14px; }
+.privacy { margin-top: 16px; font-size: 13px; color: var(--muted); max-width: 46ch; }
+
+/* ---------- Chargement ---------- */
+.loading { text-align: center; padding: 12vh 10px; max-width: 460px; margin: 0 auto; }
+.bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin: 22px auto 14px; max-width: 280px; }
+.bar i { display: block; height: 100%; width: 40%; border-radius: 3px; background: var(--accent); animation: slide 1.3s ease-in-out infinite; }
+@keyframes slide { 0% { transform: translateX(-110%); } 100% { transform: translateX(260%); } }
+.loading strong { font: 700 20px/1.2 var(--display); }
+.loading p { color: var(--muted); margin-top: 6px; }
+.spin { width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); margin: 0 auto 14px; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { * { animation-duration: 2.6s !important; transition: none !important; } .art .c1, .art .c2, .art .c3 { animation: none !important; } }
+
+/* ---------- Résultats : barre d'outils, pile, panneau ---------- */
+.results { display: flex; flex-direction: column; height: 100%; }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 2px 0 10px; flex-wrap: wrap; }
+.toolbar .count { color: var(--muted); font-size: 14px; }
+.toggle { display: inline-grid; grid-template-columns: 1fr 1fr; background: var(--side); border-radius: 12px; padding: 3px; }
+.toggle button { border: 0; background: none; border-radius: 9px; padding: 7px 16px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.toggle button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
+.stage { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); justify-content: center; gap: 36px; }
+.deck { display: flex; flex-direction: column; min-height: 0; width: 100%; max-width: 540px; margin: 0 auto; }
+.stack { position: relative; flex: 1; min-height: 0; }
+.card { position: absolute; inset: 0; background: var(--card); border-radius: 24px; box-shadow: var(--shadow); padding: 20px 20px 22px;
+  overflow-y: auto; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.card.under { transform: scale(.95) translateY(14px); opacity: .7; pointer-events: none; overflow: hidden; }
+.card.front { cursor: grab; }
+.stamp { position: absolute; top: 18px; padding: 6px 12px; border: 3px solid; border-radius: 10px; font: 800 20px/1 var(--display);
+  opacity: 0; pointer-events: none; z-index: 2; background: var(--card); }
+.stamp.keep { left: 16px; color: var(--ok); border-color: var(--ok); transform: rotate(-10deg); }
+.stamp.skip { right: 16px; color: var(--gap); border-color: var(--gap); transform: rotate(10deg); }
+.chead { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.who { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 auto; }
+.chead .score { flex: none; }
+.av { width: var(--s, 40px); height: var(--s, 40px); border-radius: 12px; color: #fff; display: inline-flex; align-items: center; justify-content: center;
+  font: 800 calc(var(--s, 40px) * .38)/1 var(--display); flex: none; letter-spacing: -.02em; }
+.src { font-size: 13px; font-weight: 600; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.score { font: 800 64px/0.9 var(--display); letter-spacing: -.05em; text-align: right; }
+.score small { font-size: 24px; letter-spacing: 0; color: var(--muted); font-weight: 700; margin-left: 2px; }
+.score.hi { color: var(--ok); } .score.mid { color: var(--accent); } .score.lo { color: var(--gap); }
+.card h2 { font: 700 clamp(22px, 5.5vw, 26px)/1.12 var(--display); letter-spacing: -.02em; margin: 16px 0 6px; overflow-wrap: anywhere; }
+.meta { color: var(--muted); margin-bottom: 18px; }
+.cover { display: flex; gap: 3px; height: 14px; margin: 4px 0 6px; }
+.cover i { flex: 1; border-radius: 3px; background: var(--ok); }
+.cover i.miss { background: transparent; box-shadow: inset 0 0 0 2px var(--gap); }
+.cover-label { font-size: 14px; color: var(--muted); margin-bottom: 18px; }
+.cover-label b { color: var(--ink); }
+.gt { font: 700 14px/1 var(--body); margin: 14px 0 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 13px; font-weight: 500; padding: 4px 10px; border-radius: 999px; }
+.chip.ok { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+.chip.gap { background: color-mix(in srgb, var(--gap) 14%, transparent); color: var(--gap); }
+.chip.neutral { background: color-mix(in srgb, var(--accent) 11%, transparent); color: var(--accent); }
+.link { display: inline-block; margin-top: 18px; color: var(--accent); font-weight: 600; text-decoration: none; }
+.link:hover { text-decoration: underline; }
+.actions { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 10px; padding-top: 14px; }
+.act { border: 1px solid var(--line); background: var(--card); border-radius: 16px; padding: 14px 6px; font: 700 15px/1.1 var(--display); box-shadow: var(--shadow); }
+.act.keep { color: var(--ok); } .act.skip { color: var(--gap); }
+.act.ai { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.kbd { display: none; text-align: center; color: var(--muted); font-size: 13px; padding-top: 10px; }
+@media (hover: hover) and (min-width: 960px) { .kbd { display: block; } }
+.rail { display: none; }
+@media (min-width: 1180px) {
+  .stage { grid-template-columns: minmax(0, 540px) 330px; }
+  .deck { margin: 0; }
+  .rail { display: block; overflow-y: auto; padding-bottom: 8px; }
+}
+.panel { background: var(--card); border-radius: 20px; padding: 18px; box-shadow: var(--shadow); margin-bottom: 14px; }
+.panel h3 { font: 700 16px/1.2 var(--display); margin-bottom: 10px; }
+.legend { display: grid; gap: 10px; font-size: 14px; color: var(--muted); }
+.legend div { display: flex; align-items: center; gap: 10px; }
+.legend .cover { width: 34px; height: 12px; margin: 0; flex: none; }
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
+.kpis b { display: block; font: 800 26px/1 var(--display); letter-spacing: -.03em; }
+.kpis span { font-size: 12px; color: var(--muted); }
+.empty { text-align: center; padding: 8vh 10px; margin: 0 auto; max-width: 420px; }
+.empty h2 { font: 800 28px/1.1 var(--display); letter-spacing: -.02em; margin-bottom: 8px; }
+.empty p { color: var(--muted); margin-bottom: 20px; }
+.empty .btn { display: block; width: 100%; max-width: 320px; margin: 0 auto 10px; }
+
+/* ---------- Filtres et tri ---------- */
+.tbtn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 8px 14px; font-size: 14px; font-weight: 600; }
+.tbtn[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+.tools2 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.fpanel { background: var(--card); border-radius: 18px; box-shadow: var(--shadow); padding: 16px; margin-bottom: 14px; display: grid; gap: 12px 14px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); align-items: end; }
+.fpanel label { display: grid; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); min-width: 0; }
+.fpanel select, .fpanel input[type=text], .fpanel input[type=number] { width: 100%; font: inherit; font-weight: 400; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; }
+.fpanel .chk { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: var(--ink); padding: 9px 2px; }
+.fpanel .chk input { width: 18px; height: 18px; accent-color: var(--accent); }
+.fpanel .span { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-size: 12.5px; font-weight: 600; padding: 3px 9px; border-radius: 8px; background: var(--bg); color: var(--muted); white-space: nowrap; }
+.tag.sal { background: color-mix(in srgb, var(--ok) 13%, transparent); color: var(--ok); }
+.tag.new { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+.card .tags { margin: -8px 0 16px; }
+.pills { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
+.pill { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 6px 14px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.pill[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.pill b { font-weight: 700; margin-left: 4px; }
+.stat { display: grid; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.stat select { width: 100%; font: inherit; font-weight: 500; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.stat input { font: inherit; font-weight: 400; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; width: 100%; }
+.tag.st-applied { background: color-mix(in srgb, var(--accent) 13%, transparent); color: var(--accent); }
+.tag.st-interview, .tag.st-offer { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+.tag.st-rejected { background: color-mix(in srgb, var(--gap) 14%, transparent); color: var(--gap); }
+
+/* ---------- Liste (grille de cartes) ---------- */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 14px; align-content: start; }
+.oc { background: var(--card); border-radius: 20px; padding: 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.oc .top3 { display: flex; align-items: flex-start; gap: 12px; }
+.oc h4 { font: 700 17px/1.2 var(--display); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.oc .sub { color: var(--muted); font-size: 14px; }
+.oc .pct { margin-left: auto; font: 800 26px/1 var(--display); letter-spacing: -.04em; }
+.oc .pct.hi { color: var(--ok); } .oc .pct.mid { color: var(--accent); } .oc .pct.lo { color: var(--gap); }
+.oc .cover { height: 10px; margin: 2px 0; }
+.oc .bar-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; padding-top: 4px; }
+h3.page { font: 800 clamp(26px, 5vw, 34px)/1.1 var(--display); letter-spacing: -.025em; margin: 6px 0 16px; }
+
+/* ---------- Profil ---------- */
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+.fact { background: var(--card); border-radius: 18px; padding: 16px; box-shadow: var(--shadow); }
+.fact { padding: 14px; }
+.fact b { display: block; font: 800 clamp(24px, 6vw, 32px)/1 var(--display); letter-spacing: -.03em; margin-bottom: 4px; }
+.fact span { color: var(--muted); font-size: 13px; line-height: 1.25; display: block; }
+.two { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 860px) { .two { grid-template-columns: 1fr 1fr; } }
+.hb { display: grid; grid-template-columns: minmax(90px, 34%) 1fr auto; gap: 10px; align-items: center; font-size: 14px; margin: 8px 0; }
+.hb .t { height: 10px; border-radius: 5px; background: var(--bg); overflow: hidden; }
+.hb .t i { display: block; height: 100%; border-radius: 5px; background: var(--ok); }
+.hb.g .t i { background: var(--gap); }
+.hb span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ---------- Assistant IA : tiroir latéral (grand écran) / feuille basse (mobile) ---------- */
+.backdrop { position: fixed; inset: 0; background: rgba(8,10,24,.55); z-index: 10; display: flex; align-items: flex-end; justify-content: center; }
+.sheet { background: var(--bg); width: 100%; max-width: 720px; max-height: 92dvh; border-radius: 24px 24px 0 0; display: flex; flex-direction: column;
+  padding: 18px 20px calc(env(safe-area-inset-bottom) + 16px); animation: up .24s ease-out; }
+@keyframes up { from { transform: translateY(40px); opacity: 0; } }
+@keyframes in-right { from { transform: translateX(40px); opacity: 0; } }
+@media (min-width: 960px) {
+  .backdrop { justify-content: flex-end; align-items: stretch; }
+  .sheet { max-width: 600px; width: min(600px, 100%); height: 100dvh; max-height: none; border-radius: 24px 0 0 24px; padding: 24px 28px 22px; animation: in-right .26s ease-out; }
+}
+.sh { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.sh .who { align-items: flex-start; }
+.sh h3 { font: 700 19px/1.2 var(--display); }
+.sh p { color: var(--muted); font-size: 14px; }
+.x { background: none; border: 0; font-size: 28px; line-height: 1; color: var(--muted); padding: 0 4px; }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--side); padding: 4px; border-radius: 14px; margin: 14px 0; }
+.seg button { border: 0; background: none; border-radius: 10px; padding: 10px 4px; font-weight: 600; font-size: 14px; color: var(--muted); }
+.seg button[aria-selected="true"] { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
+.out { overflow-y: auto; flex: 1; min-height: 140px; }
+.out .ph { color: var(--muted); padding: 6px 2px; }
+.callout { background: color-mix(in srgb, var(--ok) 12%, transparent); color: var(--ink); border-left: 4px solid var(--ok); border-radius: 12px; padding: 14px 16px; }
+.callout.warn { background: color-mix(in srgb, var(--gap) 12%, transparent); border-left-color: var(--gap); margin-bottom: 12px; }
+.paper { background: #fff; color: #1B1E36; border-radius: 14px; padding: 24px 26px; box-shadow: var(--shadow); font: 400 14.5px/1.6 var(--body); }
+.md h1 { font: 800 22px/1.15 var(--display); letter-spacing: -.02em; margin: 0 0 4px; }
+.md h2 { font: 700 13px/1.2 var(--display); color: #2F3BFF; border-bottom: 2px solid #2F3BFF; padding-bottom: 3px; margin: 18px 0 8px; }
+.md h3 { font: 700 14px/1.3 var(--body); margin: 12px 0 3px; }
+.md p { margin: 0 0 9px; overflow-wrap: anywhere; }
+.md ul, .md ol { margin: 2px 0 10px; padding-left: 20px; }
+.md li { margin: 2px 0; }
+.md hr { border: 0; border-top: 1px solid #D5D9E8; margin: 12px 0; }
+.md.plain h4 { font: 700 15px/1.2 var(--display); margin: 14px 0 4px; text-transform: capitalize; }
+.photo-row { flex: 1 1 100%; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 12px; font-size: 14px; }
+.photo-row img { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; }
+.photo-row .none { width: 44px; height: 44px; border-radius: 10px; background: var(--line); display: grid; place-items: center; color: var(--muted); font-size: 12px; }
+.photo-row label.chk { display: flex; align-items: center; gap: 6px; margin-left: auto; cursor: pointer; }
+.paper .pphoto { float: right; width: 84px; height: 84px; border-radius: 8px; object-fit: cover; margin: 0 0 8px 14px; }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 12px; }
+.note { color: var(--muted); font-size: 13px; padding-top: 10px; }
+.toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 90px); transform: translateX(-50%); background: var(--ink); color: var(--bg);
+  padding: 10px 16px; border-radius: 12px; font-weight: 600; font-size: 14px; z-index: 30; max-width: 90vw; text-align: center; }
+@media (min-width: 960px) { .toast { bottom: 28px; } }
+@media print { body { overflow: visible; } .app > :not(main) { display: none; } }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="brand"><img src="logo.svg" alt="" width="34" height="34"><b>Data<span>Swipe</span></b></div>
+  <div class="status" aria-live="polite"><span class="dot" id="dot"></span><span id="statusTxt">Connexion…</span></div>
+  <main>
+    <section class="view" id="view-discover"></section>
+    <section class="view" id="view-saved" hidden></section>
+    <section class="view" id="view-profile" hidden></section>
+  </main>
+  <div class="sidefill"></div>
+  <nav role="tablist" aria-label="Navigation principale">
+    <button role="tab" data-tab="discover" aria-selected="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6M9 12h4"/></svg>Découvrir</button>
+    <button role="tab" data-tab="saved" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>Favoris<span class="badge" id="savedBadge" hidden>0</span></button>
+    <button role="tab" data-tab="profile" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Mon profil</button>
+  </nav>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ======================= Utilitaires ======================= */
+  const $ = (s) => document.querySelector(s);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* stockage indisponible */ } },
+  };
+  // Création DOM sans innerHTML : les offres viennent de sites tiers et l'IA génère du texte libre,
+  // tout est donc inséré comme texte, jamais comme HTML.
+  function h(tag, attrs, ...kids) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v === null || v === undefined || v === false) continue;
+      if (k === "class") el.className = v;
+      else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, v === true ? "" : v);
+    }
+    for (const c of kids.flat(Infinity)) {
+      if (c === null || c === undefined || c === false) continue;
+      el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+    }
+    return el;
+  }
+  const safeUrl = (u) => typeof u === "string" && /^https?:\/\//i.test(u) ? u : null;
+  const SOURCES = { france_travail: "France Travail", francetravail: "France Travail", wttj: "WTTJ", hellowork: "HelloWork" };
+  const srcLabel = (s) => SOURCES[s] || String(s || "Source").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+  const place = (o) => [o.company, o.location].filter(Boolean).join(" · ");
+  const kEuro = (v) => Math.round(Number(v) / 1000);
+  function salaryLabel(o) {
+    const a = o.salary_min, b = o.salary_max;
+    if (a && b && kEuro(a) !== kEuro(b)) return `${kEuro(a)}–${kEuro(b)} K€`;
+    if (a || b) return `${a ? "dès " : ""}${kEuro(a || b)} K€`;
+    return null;
+  }
+  const remoteLabel = (v) => v || null;   // libellés déjà normalisés par le serveur
+  function dateLabel(o) {
+    if (!o.date) return null;
+    const d = new Date(o.date), days = Math.floor((Date.now() - d.getTime()) / 86400000);
+    const rel = days <= 0 ? "aujourd’hui" : days === 1 ? "hier" : days < 31 ? `il y a ${days} j` : d.toLocaleDateString("fr-FR");
+    return o.date_known ? `Publiée ${rel}` : `Collectée ${rel}`;
+  }
+  const isNew = (o) => o.date && (Date.now() - new Date(o.date).getTime()) < 2 * 86400000;
+  function factTags(o) {
+    const t = [], sal = salaryLabel(o), d = dateLabel(o), rm = remoteLabel(o.remote);
+    if (o.contract_type) t.push(h("span", { class: "tag" }, o.contract_type));
+    if (sal) t.push(h("span", { class: "tag sal" }, sal));
+    if (rm) t.push(h("span", { class: "tag" }, rm));
+    if (d) t.push(h("span", { class: "tag" + (isNew(o) ? " new" : ""), title: o.date_known ? "Date de publication de l’offre" : "Date de publication inconnue : date de première collecte" }, d));
+    return t.length ? h("div", { class: "tags" }, t) : null;
+  }
+  const errMsg = (e) => typeof e === "string" ? e : (e && e.message) || "Erreur inconnue";
+  const fr = (n) => Number(n).toLocaleString("fr-FR");
+  const slug = (s) => String(s || "").normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40);
+  function toast(msg) { const t = h("div", { class: "toast", role: "status" }, msg); document.body.append(t); setTimeout(() => t.remove(), 2200); }
+
+  const AV = ["#2F3BFF", "#0E9F6E", "#D9480F", "#7C3AED", "#0284C7", "#C026D3", "#A16207", "#475569"];
+  function avatar(name, size = 40) {
+    const t = String(name || "?").trim();
+    const words = t.split(/\s+/).filter((w) => /[A-Za-zÀ-ÿ0-9]/.test(w));
+    const ini = (((words[0] || "?")[0] || "?") + ((words[1] || "")[0] || "")).toUpperCase();
+    let hash = 0; for (const c of t) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
+    return h("span", { class: "av", style: `--s:${size}px;background:${AV[hash % AV.length]}`, "aria-hidden": "true" }, ini);
+  }
+
+  /* ---- Rendu Markdown sûr (titres, listes, gras, italique, séparateurs) ---- */
+  function inlineMd(text) {
+    return text.split(/(\*\*[^*\n]+\*\*|\*[^*\n]+\*)/g).filter(Boolean).map((p) =>
+      p.startsWith("**") && p.endsWith("**") && p.length > 4 ? h("strong", {}, p.slice(2, -2))
+      : p.startsWith("*") && p.endsWith("*") && p.length > 2 ? h("em", {}, p.slice(1, -1)) : p);
+  }
+  function renderMarkdown(src, parent) {
+    let para = [], list = null;
+    const flushPara = () => {
+      if (!para.length) return;
+      const p = h("p");
+      para.forEach((line, i) => { if (i) p.append(h("br")); p.append(...inlineMd(line)); });
+      parent.append(p); para = [];
+    };
+    const flushList = () => { list = null; };
+    for (const raw of String(src).replace(/\r/g, "").split("\n")) {
+      const line = raw.trimEnd(); let m;
+      if (!line.trim()) { flushPara(); flushList(); continue; }
+      if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { flushPara(); flushList(); parent.append(h("hr")); continue; }
+      if ((m = line.match(/^(#{1,3})\s+(.*)$/))) { flushPara(); flushList(); parent.append(h("h" + m[1].length, {}, inlineMd(m[2]))); continue; }
+      if ((m = line.match(/^\s*[-*•]\s+(.*)$/))) {
+        flushPara(); if (!list || list.tag !== "UL") { list = h("ul"); list.tag = "UL"; parent.append(list); }
+        list.append(h("li", {}, inlineMd(m[1]))); continue;
+      }
+      if ((m = line.match(/^\s*\d+[.)]\s+(.*)$/))) {
+        flushPara(); if (!list || list.tag !== "OL") { list = h("ol"); list.tag = "OL"; parent.append(list); }
+        list.append(h("li", {}, inlineMd(m[1]))); continue;
+      }
+      flushList(); para.push(line.trim());
+    }
+    flushPara();
+  }
+  function renderValue(v, parent) {   // texte, liste ou objet : on affiche tout proprement
+    if (v === null || v === undefined) return;
+    if (typeof v === "string") renderMarkdown(v, parent);
+    else if (Array.isArray(v)) parent.append(h("ul", {}, v.map((x) => { const li = h("li"); renderValue(x, li); return li; })));
+    else if (typeof v === "object") for (const [k, val] of Object.entries(v)) { parent.append(h("h4", {}, k.replace(/_/g, " "))); renderValue(val, parent); }
+    else parent.append(h("p", {}, String(v)));
+  }
+  function toPlain(v) {
+    if (v === null || v === undefined) return "";
+    if (typeof v === "string") return v;
+    if (Array.isArray(v)) return v.map((x) => "- " + toPlain(x)).join("\n");
+    if (typeof v === "object") return Object.entries(v).map(([k, x]) => `## ${k.replace(/_/g, " ")}\n${toPlain(x)}`).join("\n\n");
+    return String(v);
+  }
+
+  /* ======================= État ======================= */
+  const state = {
+    file: null, cvText: "", cvSkills: [], cats: {}, total: 0,
+    offers: [], matching: 0, facets: {}, dist: {}, q: {}, filtersOpen: false, idx: 0, scale: 1, mode: store.get("ds_mode", "cards"),
+    saved: store.get("ds_saved", []), photo: store.get("ds_photo", ""), photoOn: store.get("ds_photo_on", true), tab: "discover", busy: false, error: "", health: null,
+  };
+  const pct = (o) => Math.max(0, Math.min(100, Math.round((Number(o.score) || 0) * state.scale)));
+  const tier = (p) => p >= 70 ? "hi" : p >= 40 ? "mid" : "lo";
+  const STATUS = [["todo", "À postuler"], ["applied", "Postulé"], ["interview", "Entretien"], ["offer", "Offre reçue"], ["rejected", "Refusé"]];
+  const statusName = (k) => (STATUS.find((x) => x[0] === k) || STATUS[0])[1];
+  const savedEntry = (o) => state.saved.find((s) => s.dedup_key === o.dedup_key);
+  const persistSaved = () => { store.set("ds_saved", state.saved); updateBadge(); };
+  const todayIso = () => new Date().toISOString().slice(0, 10);
+  const isSaved = (o) => state.saved.some((s) => s.dedup_key === o.dedup_key);
+  const hasResults = () => state.offers.length > 0 || !!state.cvText;
+
+  /* ======================= API (même origine que la page) ======================= */
+  async function apiError(r) {
+    let d = ""; try { const j = await r.json(); d = j.detail; } catch { /* corps non JSON */ }
+    if (Array.isArray(d)) d = d.map((x) => x.msg).join(" ; ");
+    return new Error(d || `Erreur ${r.status}`);
+  }
+  async function runMatch() {
+    const fd = new FormData(); fd.append("cv_file", state.file);
+    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 5 * 60 * 1000);
+    try {
+      const r = await fetch("/match", { method: "POST", body: fd, signal: ctl.signal });
+      if (!r.ok) throw await apiError(r);
+      return await r.json();
+    } catch (e) {
+      if (e.name === "AbortError") throw new Error("L’analyse prend trop de temps. Réessayez dans un instant.");
+      if (e instanceof TypeError) throw new Error("Serveur injoignable. Vérifiez que DataSwipe est démarré.");
+      throw e;
+    } finally { clearTimeout(timer); }
+  }
+  async function runSearch(offset) {
+    const f = {}; for (const [k, v] of Object.entries(state.q)) if (v !== "" && v !== null && v !== undefined && v !== false) f[k] = v;
+    const r = await fetch("/search", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cv_skills: state.cvSkills, filters: f, offset, limit: 30 }) });
+    if (!r.ok) throw await apiError(r);
+    return r.json();
+  }
+  async function runAssist(dedupKey, mode) {
+    const r = await fetch("/assist", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dedup_key: dedupKey, mode, cv_text: state.cvText }) });
+    if (!r.ok) throw await apiError(r);
+    return r.json();
+  }
+  async function downloadFile(format, filename, content, kind) {
+    const photo = state.photo && state.photoOn ? state.photo : null;
+    const r = await fetch("/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ format, filename, content, kind: kind || "", photo }) });
+    if (!r.ok) throw await apiError(r);
+    const url = URL.createObjectURL(await r.blob());
+    const a = h("a", { href: url, download: `${filename}.${format}` }); document.body.append(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+  }
+  function applyMatch(data) {
+    state.cvText = data.cv_text || state.cvText;
+    state.cvSkills = data.cv_skills || [];
+    state.cats = data.skill_categories || state.cats;
+    state.total = data.total_offers_analyzed || 0;
+    state.matching = data.total_matching ?? (data.results || []).length;
+    state.facets = data.facets || state.facets;
+    state.dist = data.distribution || {};
+    state.offers = data.results || [];
+    state.idx = 0; state.scale = 1;   // le score est déjà sur 100
+    // Filtres de la session précédente, ramenés aux options qui existent encore dans la base
+    const q = store.get("ds_filters", {}), F = state.facets || {}, has = (list, v) => (list || []).some((x) => x.value === v);
+    if (q.contract && !has(F.contracts, q.contract)) delete q.contract;
+    if (q.remote && !has(F.remotes, q.remote)) delete q.remote;
+    if (q.source && !has(F.sources, q.source)) delete q.source;
+    state.q = q;
+  }
+  const saveFilters = () => store.set("ds_filters", state.q);
+  // Relance la recherche avec les filtres courants (reset) ou charge la page suivante (append).
+  async function refine(append) {
+    try {
+      const d = await runSearch(append ? state.offers.length : 0);
+      Object.assign(state.cats, d.skill_categories || {});
+      state.matching = d.total_matching; state.dist = d.distribution || {};
+      if (append) state.offers = state.offers.concat(d.results); else { state.offers = d.results; state.idx = 0; }
+    } catch (e) { toast(errMsg(e)); }
+    renderDiscover();
+  }
+
+  /* ======================= État de l'API ======================= */
+  let healthTimer = null;
+  async function checkHealth() {
+    clearTimeout(healthTimer);
+    try {
+      const j = await (await fetch("/health")).json();
+      state.health = j;
+      const ready = !j.catalog || j.catalog.ready;
+      $("#dot").className = "dot " + (ready ? "on" : "wait");
+      $("#statusTxt").textContent = ready ? (j.catalog ? `${fr(j.catalog.offers)} offres prêtes` : "API connectée") : "Chargement de la base d’offres…";
+      if (!ready) healthTimer = setTimeout(checkHealth, 4000);
+    } catch {
+      $("#dot").className = "dot off"; $("#statusTxt").textContent = "API injoignable";
+      healthTimer = setTimeout(checkHealth, 8000);
+    }
+  }
+  const assistOn = () => !state.health || !state.health.assist || state.health.assist.enabled !== false;
+
+  /* ======================= Onglets ======================= */
+  function showTab(tab) {
+    state.tab = tab;
+    document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+    for (const v of ["discover", "saved", "profile"]) $("#view-" + v).hidden = v !== tab;
+    ({ discover: renderDiscover, saved: renderSaved, profile: renderProfile })[tab]();
+  }
+  document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
+  function updateBadge() { const b = $("#savedBadge"); b.textContent = state.saved.length; b.hidden = !state.saved.length; }
+
+  /* ======================= Découvrir ======================= */
+  function renderDiscover() {
+    const v = $("#view-discover"); v.replaceChildren(); v.style.overflowY = "";
+    if (state.busy) return renderLoading(v);
+    if (!hasResults()) return renderUpload(v);
+    renderResults(v);
+  }
+
+  const HERO_ART = `<svg viewBox="0 0 380 330" aria-hidden="true">
+    <g class="c3"><g transform="rotate(11 210 150)"><rect x="92" y="38" width="200" height="236" rx="22" style="fill:var(--accent);opacity:.18"/></g></g>
+    <g class="c2"><g transform="rotate(-7 190 150)"><rect x="84" y="30" width="206" height="240" rx="22" style="fill:var(--accent);opacity:.32"/></g></g>
+    <g class="c1"><g transform="rotate(2 190 160)">
+      <rect x="78" y="22" width="224" height="262" rx="24" class="sf" style="filter:drop-shadow(0 18px 24px rgba(17,20,43,.22))"/>
+      <rect x="98" y="44" width="40" height="40" rx="12" style="fill:var(--accent)"/>
+      <text x="118" y="71" text-anchor="middle" font-size="17" font-weight="800" fill="#fff" style="font-family:var(--display)">DE</text>
+      <text x="282" y="82" text-anchor="end" font-size="46" font-weight="800" style="font-family:var(--display);fill:var(--ok);letter-spacing:-2px">87%</text>
+      <rect x="98" y="104" width="150" height="14" rx="7" class="ink"/>
+      <rect x="98" y="128" width="104" height="10" rx="5" class="sk"/>
+      <g>
+        <rect x="98" y="164" width="19" height="14" rx="3.5" style="fill:var(--ok)"/><rect x="121" y="164" width="19" height="14" rx="3.5" style="fill:var(--ok)"/>
+        <rect x="144" y="164" width="19" height="14" rx="3.5" style="fill:var(--ok)"/><rect x="167" y="164" width="19" height="14" rx="3.5" style="fill:var(--ok)"/>
+        <rect x="190" y="164" width="19" height="14" rx="3.5" style="fill:var(--ok)"/><rect x="213" y="164" width="19" height="14" rx="3.5" style="fill:var(--ok)"/>
+        <rect x="237" y="165" width="17" height="12" rx="3" fill="none" stroke-width="2.2" style="stroke:var(--gap)"/>
+        <rect x="259" y="165" width="17" height="12" rx="3" fill="none" stroke-width="2.2" style="stroke:var(--gap)"/>
+      </g>
+      <rect x="98" y="196" width="46" height="22" rx="11" style="fill:var(--ok);opacity:.18"/><rect x="150" y="196" width="40" height="22" rx="11" style="fill:var(--ok);opacity:.18"/>
+      <rect x="196" y="196" width="52" height="22" rx="11" style="fill:var(--ok);opacity:.18"/>
+      <rect x="98" y="226" width="58" height="22" rx="11" style="fill:var(--gap);opacity:.18"/><rect x="162" y="226" width="46" height="22" rx="11" style="fill:var(--gap);opacity:.18"/>
+    </g></g>
+    <g transform="translate(110 296)"><circle r="21" class="sf" style="filter:drop-shadow(0 6px 8px rgba(17,20,43,.2))"/><path d="M-7 -7l14 14M7 -7l-14 14" stroke-width="3.4" stroke-linecap="round" style="stroke:var(--gap)"/></g>
+    <g transform="translate(270 296)"><circle r="21" class="sf" style="filter:drop-shadow(0 6px 8px rgba(17,20,43,.2))"/><path d="M0 8c-9-6-12-10-12-15a6 6 0 0 1 12-2 6 6 0 0 1 12 2c0 5-3 9-12 15z" style="fill:var(--ok)"/></g>
+  </svg>`;
+
+  function renderUpload(v) {
+    const input = h("input", { type: "file", accept: ".pdf,.docx", id: "cv", "aria-label": "Choisir mon CV" });
+    const drop = h("label", { class: "drop" + (state.file ? " has" : "") }, input,
+      h("strong", {}, state.file ? state.file.name : "Choisir mon CV"), h("small", {}, state.file ? "Appuyez pour changer de fichier" : "PDF ou DOCX · ou glissez-le ici"));
+    const go = h("button", { class: "btn primary block", disabled: !state.file }, "Trouver mes offres");
+    const setFile = (f) => { state.file = f || null; state.error = ""; renderDiscover(); };
+    input.addEventListener("change", () => setFile(input.files[0]));
+    ["dragover", "dragenter"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+    ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+    drop.addEventListener("drop", (e) => { if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
+    go.addEventListener("click", startMatch);
+
+    const art = h("div", { class: "art" }); art.innerHTML = HERO_ART;   // SVG constant, aucune donnée externe
+    v.append(h("div", { class: "wrap" }, h("div", { class: "hero" },
+      h("div", {},
+        h("h1", {}, "Votre prochain poste data"),
+        h("p", { class: "lead" }, "Déposez votre CV : DataSwipe le compare à toutes les offres collectées, classe celles qui vous correspondent et vous laisse filtrer par date, ville, contrat ou salaire."),
+        drop, go,
+        state.error ? h("p", { class: "err", role: "alert" }, state.error) : null,
+        h("p", { class: "privacy" }, "Votre CV est analysé sur ce serveur et n’est pas conservé. Le texte n’est envoyé à l’IA que si vous ouvrez l’assistant.")),
+      art)));
+  }
+
+  let loadTimer = null;
+  function renderLoading(v) {
+    const msg = h("p", {}, "Lecture de votre CV…");
+    const secs = h("span", {}, "0 s");
+    const steps = ["Lecture de votre CV…", "Détection de vos compétences…", `Comparaison avec les ${state.health && state.health.catalog && state.health.catalog.offers ? fr(state.health.catalog.offers) + " " : ""}offres…`, "Classement des meilleures correspondances…"];
+    v.append(h("div", { class: "loading", role: "status" }, h("div", { class: "spin" }), h("strong", {}, "Analyse en cours"), h("div", { class: "bar" }, h("i")), msg,
+      h("p", { class: "hint" }, secs)));
+    const t0 = Date.now(); clearInterval(loadTimer);
+    loadTimer = setInterval(() => {
+      const s = Math.floor((Date.now() - t0) / 1000);
+      secs.textContent = `${s} s`;
+      msg.textContent = s > 25 ? "La base d’offres se prépare (premier lancement du serveur). Cela peut prendre jusqu’à 2 minutes." : steps[Math.min(3, Math.floor(s / 3))];
+    }, 1000);
+  }
+
+  async function startMatch() {
+    state.busy = true; state.error = ""; renderDiscover();
+    try {
+      applyMatch(await runMatch());
+      if (activeFilters() || state.q.sort) {   // filtres mémorisés : on relance la recherche avec eux
+        const d = await runSearch(0);
+        state.offers = d.results; state.matching = d.total_matching; state.dist = d.distribution || {};
+        Object.assign(state.cats, d.skill_categories || {});
+        if (activeFilters()) { state.filtersOpen = true; setTimeout(() => toast("Vos filtres précédents sont appliqués"), 300); }
+      }
+    } catch (e) { state.error = errMsg(e); }
+    clearInterval(loadTimer); state.busy = false; renderDiscover(); updateBadge();
+  }
+  async function loadMore() { await refine(true); }
+  const hasMore = () => state.offers.length < state.matching;
+  const moreLabel = () => `Charger ${Math.min(30, state.matching - state.offers.length)} offres de plus`;
+
+  /* ---- Cartes ---- */
+  function coverBar(o) {
+    const m = (o.matched_skills || []).length, g = (o.missing_skills || []).length, n = m + g;
+    if (!n) return [];
+    const segs = []; for (let i = 0; i < n; i++) segs.push(h("i", { class: i < m ? "" : "miss" }));
+    return [h("div", { class: "cover", role: "img", "aria-label": `${m} compétences sur ${n} couvertes` }, segs),
+      h("p", { class: "cover-label" }, h("b", {}, `${m} sur ${n}`), " compétences demandées sont dans votre CV")];
+  }
+  const chips = (list, cls, max) => h("div", { class: "chips" }, list.slice(0, max).map((s) => h("span", { class: "chip " + cls }, s)),
+    list.length > max ? h("span", { class: "chip " + cls }, `+${list.length - max}`) : null);
+
+  function buildCard(o, under) {
+    const p = pct(o), matched = o.matched_skills || [], missing = o.missing_skills || [], url = safeUrl(o.url);
+    return h("article", { class: "card " + (under ? "under" : "front"), "aria-label": o.title || "Offre" },
+      h("div", { class: "stamp keep" }, "Gardée"), h("div", { class: "stamp skip" }, "Passée"),
+      h("div", { class: "chead" }, h("div", { class: "who" }, avatar(o.company, 44), h("span", { class: "src" }, srcLabel(o.source))),
+        h("div", { class: "score " + tier(p), "aria-label": `Compatibilité ${p} pour cent` }, p, h("small", {}, "%"))),
+      h("h2", {}, o.title || "Offre sans titre"), h("p", { class: "meta" }, place(o)), factTags(o),
+      coverBar(o),
+      matched.length ? [h("div", { class: "gt" }, "Dans votre CV"), chips(matched, "ok", 14)] : null,
+      missing.length ? [h("div", { class: "gt" }, "À acquérir"), chips(missing, "gap", 10)] : null,
+      url ? h("a", { class: "link", href: url, target: "_blank", rel: "noopener" }, "Voir l’offre d’origine") : null);
+  }
+
+  const FILTER_KEYS = ["max_age_days", "city", "contract", "remote", "source", "salary_only", "salary_min", "min_score", "keyword"];
+  const activeFilters = () => FILTER_KEYS.filter((k) => state.q[k] !== undefined && state.q[k] !== "" && state.q[k] !== false && state.q[k] !== null).length;
+
+  function filterPanel() {
+    const F = state.facets || {};
+    const set = (k, v) => { state.q[k] = v; saveFilters(); refine(false); };
+    const sel = (label, key, options, num) => h("label", {}, label, h("select", { onchange: (e) => set(key, num && e.target.value !== "" ? Number(e.target.value) : e.target.value) },
+      options.map(([val, txt]) => h("option", { value: val, selected: String(state.q[key] ?? "") === String(val) }, txt))));
+    const withCount = (list, fmt) => (list || []).map((x) => [x.value, `${fmt ? fmt(x.value) : x.value} (${fr(x.count)})`]);
+    const cities = h("datalist", { id: "cities" }, (F.cities || []).map((c) => h("option", { value: c.value })));
+    const panel = h("div", { class: "fpanel", role: "region", "aria-label": "Filtres" },
+      sel("Trier par", "sort", [["relevance", "Pertinence"], ["recent", "Plus récentes"], ["salary", "Salaire décroissant"]]),
+      sel("Publiée", "max_age_days", [["", "Toutes les dates"], [1, "Dernières 24 h"], [3, "3 derniers jours"], [7, "7 derniers jours"], [14, "14 derniers jours"], [30, "30 derniers jours"]], true),
+      h("label", {}, "Ville", h("input", { type: "text", list: "cities", placeholder: "Paris, Lyon…", value: state.q.city || "", "aria-label": "Ville", onchange: (e) => set("city", e.target.value.trim()) }), cities),
+      (F.contracts || []).length ? sel("Contrat", "contract", [["", "Tous les contrats"], ...withCount(F.contracts)]) : null,
+      (F.remotes || []).length ? sel("Télétravail", "remote", [["", "Indifférent"], ...withCount(F.remotes, remoteLabel)]) : null,
+      (F.sources || []).length > 1 ? sel("Source", "source", [["", "Toutes les sources"], ...withCount(F.sources, srcLabel)]) : null,
+      sel("Compatibilité minimale", "min_score", [["", "Toutes"], [40, "40 % et plus"], [50, "50 % et plus"], [60, "60 % et plus"], [70, "70 % et plus"], [80, "80 % et plus"]], true),
+      h("label", {}, "Salaire minimum (K€/an)", h("input", { type: "number", min: "0", max: "500", step: "5", placeholder: "ex. 45", value: state.q.salary_min ? state.q.salary_min / 1000 : "",
+        onchange: (e) => set("salary_min", e.target.value ? Math.round(Number(e.target.value) * 1000) : "") })),
+      h("label", {}, "Mot-clé (titre, entreprise, compétence)", h("input", { type: "text", placeholder: "ex. dbt, Orange, steward", value: state.q.keyword || "", onchange: (e) => set("keyword", e.target.value.trim()) })),
+      h("label", { class: "chk" }, h("input", { type: "checkbox", checked: !!state.q.salary_only, onchange: (e) => set("salary_only", e.target.checked) }),
+        `Salaire indiqué${F.with_salary ? ` (${fr(F.with_salary)} offres)` : ""}`),
+      h("div", { class: "span" }, h("span", { class: "hint", style: "font-size:13px" },
+        F.with_date ? `Date de publication connue pour ${fr(F.with_date)} offres sur ${fr(state.total)} ; pour les autres, la date de collecte est utilisée.` : "Date de publication inconnue : la date de collecte est utilisée."),
+        h("button", { class: "mini", onclick: () => { state.q = {}; saveFilters(); refine(false); } }, "Réinitialiser")));
+    return panel;
+  }
+
+  function renderResults(v) {
+    const nF = activeFilters();
+    const toggle = h("div", { class: "toggle", role: "group", "aria-label": "Affichage" },
+      h("button", { "aria-pressed": String(state.mode === "cards"), onclick: () => setMode("cards") }, "Cartes"),
+      h("button", { "aria-pressed": String(state.mode === "list"), onclick: () => setMode("list") }, "Liste"));
+    const fbtn = h("button", { class: "tbtn", "aria-expanded": String(state.filtersOpen), onclick: () => { state.filtersOpen = !state.filtersOpen; renderDiscover(); } },
+      "Filtres et tri", nF ? h("span", { class: "badge" }, nF) : null);
+    const head = state.matching
+      ? `${fr(state.matching)} offre${state.matching > 1 ? "s" : ""} · ${state.mode === "cards" ? `offre ${Math.min(state.idx + 1, state.offers.length)} sur ${fr(state.matching)}` : `${fr(state.offers.length)} affichée${state.offers.length > 1 ? "s" : ""}`}`
+      : "Aucune offre";
+    const toolbar = h("div", { class: "toolbar" }, h("span", { class: "count" }, head), h("div", { class: "tools2" }, fbtn, toggle));
+    const panel = state.filtersOpen ? filterPanel() : null;
+
+    if (!state.offers.length) {   // aucun résultat avec ces filtres
+      v.style.overflowY = "auto";
+      v.append(h("div", { class: "wrap" }, toolbar, panel, h("div", { class: "empty" }, h("h2", {}, "Aucune offre ne correspond"),
+        h("p", {}, "Essayez d’élargir la période, la ville ou la compatibilité minimale."),
+        h("button", { class: "btn primary", onclick: () => { state.q = {}; saveFilters(); refine(false); } }, "Réinitialiser les filtres"))));
+      return;
+    }
+    if (state.mode === "list") {
+      v.style.overflowY = "auto";
+      v.append(h("div", { class: "wrap" }, toolbar, panel, h("div", { class: "grid" }, state.offers.map((o) => offerTile(o, true))),
+        hasMore() ? h("p", { style: "text-align:center;margin-top:20px" }, h("button", { class: "btn ghost", onclick: loadMore }, moreLabel())) : null));
+      return;
+    }
+    v.style.overflowY = state.filtersOpen ? "auto" : "hidden";
+    const left = state.offers.length - state.idx;
+    const wrap = h("div", { class: state.filtersOpen ? "wrap" : "results wrap" }, toolbar, panel);
+    if (left <= 0) {
+      wrap.append(h("div", { class: "empty" }, h("h2", {}, "Vous avez tout parcouru"), h("p", {}, `${state.saved.length} offre(s) en favoris.`),
+        h("button", { class: "btn primary", onclick: () => showTab("saved") }, "Voir mes favoris"),
+        hasMore() ? h("button", { class: "btn ghost", onclick: loadMore }, moreLabel()) : null));
+      return v.append(wrap);
+    }
+    const cur = state.offers[state.idx], nxt = state.offers[state.idx + 1];
+    const stack = h("div", { class: "stack", style: state.filtersOpen ? "min-height:520px" : null });
+    if (nxt) stack.append(buildCard(nxt, true));
+    const card = buildCard(cur, false); stack.append(card); attachDrag(card);
+    const deck = h("div", { class: "deck", style: state.filtersOpen ? "min-height:640px" : null }, stack,
+      h("div", { class: "actions" },
+        h("button", { class: "act skip", onclick: () => decide("skip") }, "Passer"),
+        h("button", { class: "act ai", onclick: () => openAssist(cur) }, "Assistant IA"),
+        h("button", { class: "act keep", onclick: () => decide("keep") }, "Garder")),
+      h("p", { class: "kbd" }, "Flèche gauche pour passer, flèche droite pour garder"));
+    const d = state.dist || {};
+    const rail = h("aside", { class: "rail", "aria-label": "Repères" },
+      h("div", { class: "panel" }, h("h3", {}, "Où vous en êtes"), h("div", { class: "kpis" },
+        h("div", {}, h("b", {}, fr(state.total)), h("span", {}, "offres comparées")), h("div", {}, h("b", {}, state.cvSkills.length), h("span", {}, "compétences")),
+        h("div", {}, h("b", {}, state.saved.length), h("span", {}, "favoris")))),
+      h("div", { class: "panel" }, h("h3", {}, "Lire une carte"), h("div", { class: "legend" },
+        h("div", {}, h("span", { class: "cover" }, h("i"), h("i"), h("i")), "Compétence demandée présente dans votre CV"),
+        h("div", {}, h("span", { class: "cover" }, h("i", { class: "miss" }), h("i", { class: "miss" }), h("i", { class: "miss" })), "Compétence demandée à acquérir"),
+        h("div", {}, h("b", { style: "color:var(--ok);font:800 20px var(--display)" }, "%"), "Couverture des compétences de l’offre, plus de poids aux compétences rares et aux offres détaillées"))),
+      Object.keys(d).length ? h("div", { class: "panel" }, h("h3", {}, "Répartition des scores"),
+        [["90+", "90 % et plus"], ["70-89", "70 à 89 %"], ["50-69", "50 à 69 %"], ["<50", "Moins de 50 %"], ["0", "Aucune compétence commune"]].map(([k, lab]) => hbar(lab, d[k] || 0, Math.max(1, d["90+"] || 0, d["70-89"] || 0, d["50-69"] || 0, d["<50"] || 0), "", fr(d[k] || 0)))) : null,
+      h("div", { class: "panel" }, h("h3", {}, "Vos compétences"), chips(state.cvSkills, "neutral", 18)));
+    wrap.append(h("div", { class: "stage" }, deck, rail)); v.append(wrap);
+  }
+  function setMode(m) { state.mode = m; store.set("ds_mode", m); renderDiscover(); }
+
+  function save(o) {
+    if (isSaved(o)) return;
+    state.saved.unshift({ dedup_key: o.dedup_key, source: o.source, title: o.title, company: o.company, location: o.location, url: o.url,
+      score: pct(o), matched_skills: o.matched_skills, missing_skills: o.missing_skills,
+      contract_type: o.contract_type, remote: o.remote, salary_min: o.salary_min, salary_max: o.salary_max, date: o.date, date_known: o.date_known,
+      status: "todo", saved_at: todayIso(), applied_at: null, note: "" });
+    store.set("ds_saved", state.saved); updateBadge();
+  }
+  function unsave(o) { state.saved = state.saved.filter((s) => s.dedup_key !== o.dedup_key); persistSaved(); }
+
+  function decide(kind) {
+    const card = document.querySelector(".card.front"); if (!card || state.busy) return;
+    if (kind === "keep") save(state.offers[state.idx]);
+    const dir = kind === "keep" ? 1 : -1;
+    card.style.transition = "transform .28s ease-in, opacity .28s";
+    card.style.transform = `translateX(${dir * 130}vw) rotate(${dir * 24}deg)`; card.style.opacity = "0";
+    setTimeout(() => { state.idx++; renderDiscover(); }, 260);
+  }
+  function attachDrag(card) {
+    const keep = card.querySelector(".stamp.keep"), skip = card.querySelector(".stamp.skip");
+    let sx = 0, dx = 0, drag = false;
+    card.addEventListener("pointerdown", (e) => {
+      if (e.target.closest("a")) return;
+      drag = true; sx = e.clientX; dx = 0; card.style.transition = "none"; card.setPointerCapture(e.pointerId);
+    });
+    card.addEventListener("pointermove", (e) => {
+      if (!drag) return; dx = e.clientX - sx;
+      card.style.transform = `translateX(${dx}px) rotate(${dx / 18}deg)`;
+      keep.style.opacity = String(Math.max(0, Math.min(1, dx / 90))); skip.style.opacity = String(Math.max(0, Math.min(1, -dx / 90)));
+    });
+    const end = () => {
+      if (!drag) return; drag = false;
+      if (Math.abs(dx) > 110) return decide(dx > 0 ? "keep" : "skip");
+      card.style.transition = "transform .25s"; card.style.transform = ""; keep.style.opacity = skip.style.opacity = "0";
+    };
+    card.addEventListener("pointerup", end); card.addEventListener("pointercancel", end);
+  }
+  document.addEventListener("keydown", (e) => {
+    if (state.tab !== "discover" || state.mode !== "cards" || document.querySelector(".backdrop") || !hasResults() || e.target.closest("select,input")) return;
+    if (e.key === "ArrowRight") decide("keep"); else if (e.key === "ArrowLeft") decide("skip");
+  });
+
+  /* ---- Vignette d'offre (liste et favoris) ---- */
+  function offerTile(o, fromList) {
+    const p = pct(o), url = safeUrl(o.url), matched = o.matched_skills || [], missing = o.missing_skills || [];
+    const saved = isSaved(o);
+    return h("article", { class: "oc" },
+      h("div", { class: "top3" }, avatar(o.company, 40), h("div", { style: "min-width:0" }, h("h4", {}, o.title || "Offre"), h("p", { class: "sub" }, place(o))),
+        h("span", { class: "pct " + tier(p), "aria-label": `Compatibilité ${p} pour cent` }, p + "%")),
+      (() => { const n = matched.length + missing.length; if (!n) return null; const segs = []; for (let i = 0; i < n; i++) segs.push(h("i", { class: i < matched.length ? "" : "miss" }));
+        return h("div", { class: "cover", role: "img", "aria-label": `${matched.length} compétences sur ${n} couvertes` }, segs); })(),
+      missing.length ? chips(missing, "gap", 4) : (matched.length ? chips(matched, "ok", 4) : null),
+      factTags(o), (savedEntry(o) && savedEntry(o).status && savedEntry(o).status !== "todo") ? h("div", { class: "tags" }, h("span", { class: "tag st-" + savedEntry(o).status }, statusName(savedEntry(o).status))) : null,
+      h("p", { class: "sub" }, srcLabel(o.source)),
+      h("div", { class: "bar-row" },
+        h("button", { class: "mini p", onclick: () => openAssist(o) }, "Assistant IA"),
+        fromList ? h("button", { class: "mini" + (saved ? " ok" : ""), onclick: (e) => { saved ? unsave(o) : save(o); e.currentTarget.className = "mini" + (isSaved(o) ? " ok" : ""); e.currentTarget.textContent = isSaved(o) ? "Gardée" : "Garder"; } }, saved ? "Gardée" : "Garder")
+                 : h("button", { class: "mini", onclick: () => { unsave(o); renderSaved(); } }, "Retirer"),
+        url ? h("a", { class: "mini", href: url, target: "_blank", rel: "noopener" }, "Voir l’offre") : null));
+  }
+
+  /* ======================= Photo (facultative, reste dans le navigateur) ======================= */
+  function squarePhoto(file) {   // recadre au carré et réduit à 480 px : léger, et rien d'autre n'est conservé
+    return new Promise((resolve, reject) => {
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return reject(new Error("Format non pris en charge : utilisez une image JPG ou PNG."));
+      const url = URL.createObjectURL(file), img = new Image();
+      img.onload = () => {
+        const side = Math.min(img.width, img.height), c = document.createElement("canvas"); c.width = c.height = 480;
+        const sx = (img.width - side) / 2, sy = img.height > side ? (img.height - side) / 4 : 0;   // visage plutôt en haut
+        c.getContext("2d").drawImage(img, sx, sy, side, side, 0, 0, 480, 480);
+        URL.revokeObjectURL(url); resolve(c.toDataURL("image/jpeg", 0.88));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Image illisible.")); };
+      img.src = url;
+    });
+  }
+  function photoRow(onChange) {
+    const row = h("div", { class: "photo-row" });
+    const input = h("input", { type: "file", accept: "image/jpeg,image/png,image/webp", style: "display:none" });
+    input.addEventListener("change", async () => {
+      const f = input.files && input.files[0]; input.value = ""; if (!f) return;
+      try { state.photo = await squarePhoto(f); state.photoOn = true; store.set("ds_photo", state.photo); store.set("ds_photo_on", true); draw(); onChange(); }
+      catch (e) { toast(errMsg(e)); }
+    });
+    function draw() {
+      row.replaceChildren(input,
+        state.photo ? h("img", { src: state.photo, alt: "Votre photo" }) : h("div", { class: "none", "aria-hidden": "true" }, "photo"),
+        h("button", { class: "mini", onclick: () => input.click() }, state.photo ? "Changer" : "Ajouter ma photo (facultatif)"),
+        state.photo ? h("button", { class: "mini", onclick: () => { state.photo = ""; store.set("ds_photo", ""); draw(); onChange(); } }, "Supprimer") : null,
+        state.photo ? h("label", { class: "chk" }, h("input", { type: "checkbox", checked: state.photoOn ? "checked" : null,
+          onchange: (e) => { state.photoOn = e.target.checked; store.set("ds_photo_on", state.photoOn); onChange(); } }), "Inclure sur le document") : null);
+    }
+    draw(); return row;
+  }
+
+  /* ======================= Assistant IA ======================= */
+  const MODES = [["coaching", "Coaching"], ["letter", "Lettre"], ["adapt", "CV adapté"]];
+  const cache = new Map();   // évite de repayer un appel déjà fait (même offre, même mode)
+
+  function openAssist(o) {
+    if (!state.cvText) { toast("Déposez d’abord votre CV dans Découvrir"); return; }
+    const out = h("div", { class: "out", "aria-live": "polite" });
+    const tools = h("div", { class: "tools" }); let current = null;
+    const seg = h("div", { class: "seg", role: "tablist" });
+    const close = () => { backdrop.remove(); document.removeEventListener("keydown", onKey); };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", onKey);
+
+    const base = `${slug(o.company) || "Entreprise"}_${slug(o.title)}`;
+    function tool(label, fn, primary) {
+      const b = h("button", { class: "mini" + (primary ? " p" : "") }, label);
+      b.addEventListener("click", async () => { const t = b.textContent; b.disabled = true; b.textContent = "Patientez…";
+        try { await fn(); } catch (e) { toast(errMsg(e)); } b.disabled = false; b.textContent = t; });
+      return b;
+    }
+
+    async function run(mode) {
+      current = mode; tools.replaceChildren();
+      seg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.mode === mode)));
+      if (mode === "coaching" && !(o.missing_skills || []).length) {   // rien à coacher : pas d'appel inutile
+        out.replaceChildren(h("div", { class: "callout" }, h("strong", {}, "Votre CV couvre déjà toutes les compétences demandées. "), "Concentrez-vous sur la lettre et l’adaptation du CV."));
+        return;
+      }
+      if (!assistOn()) { out.replaceChildren(h("p", { class: "err" }, "L’assistant IA est désactivé sur ce serveur.")); return; }
+      out.replaceChildren(h("div", { class: "loading", style: "padding:30px 0", role: "status" }, h("div", { class: "spin" }),
+        h("p", { class: "hint" }, "Rédaction en cours, cela peut prendre une dizaine de secondes…")));
+      const key = o.dedup_key + "|" + mode;
+      try {
+        let data = cache.get(key);
+        if (!data) { data = await runAssist(o.dedup_key, mode); cache.set(key, data); }
+        if (current !== mode) return;   // l'utilisateur a changé d'onglet pendant l'attente
+        const plain = toPlain(data.result), isDoc = mode !== "coaching" && typeof data.result === "string";
+        out.replaceChildren();
+        const added = Array.isArray(data.added_skills) ? data.added_skills : [];
+        if (added.length) out.append(h("div", { class: "callout warn", role: "alert" }, h("strong", {}, "À vérifier avant d’envoyer : "),
+          `le texte mentionne ${added.length > 1 ? "des compétences absentes" : "une compétence absente"} de votre CV d’origine (${added.join(", ")}). `,
+          "Gardez-les seulement si elles sont vraies pour vous."));
+        const box = h("div", { class: "md " + (isDoc ? "paper" : "plain") }); renderValue(data.result, box); out.append(box);
+        const syncPhoto = () => { box.querySelector(".pphoto")?.remove(); if (isDoc && state.photo && state.photoOn) box.prepend(h("img", { class: "pphoto", src: state.photo, alt: "" })); };
+        syncPhoto();
+        out.append(h("p", { class: "note" }, "Relisez toujours avant d’envoyer : l’IA peut se tromper ou reformuler un fait."));
+        tools.append(tool("Copier le texte", async () => { await navigator.clipboard.writeText(plain); toast("Texte copié"); }));
+        if (isDoc) {
+          const name = (mode === "letter" ? "Lettre_" : "CV_") + base, kind = mode === "letter" ? "letter" : "cv";
+          tools.append(photoRow(syncPhoto), tool("Télécharger en Word", () => downloadFile("docx", name, plain, kind), true), tool("Télécharger en PDF", () => downloadFile("pdf", name, plain, kind)));
+        }
+      } catch (e) {
+        if (current !== mode) return;
+        out.replaceChildren(h("p", { class: "err", role: "alert" }, errMsg(e)), h("p", {}, h("button", { class: "mini", onclick: () => run(mode) }, "Réessayer")));
+      }
+    }
+    MODES.forEach(([m, label]) => seg.append(h("button", { role: "tab", "data-mode": m, "aria-selected": "false", onclick: () => run(m) }, label)));
+    out.append(h("p", { class: "ph" }, "Choisissez ce que l’assistant prépare pour cette offre : des conseils pour combler vos lacunes, une lettre de motivation, ou une version de votre CV adaptée à l’offre."));
+
+    const backdrop = h("div", { class: "backdrop", onclick: (e) => { if (e.target === backdrop) close(); } },
+      h("div", { class: "sheet", role: "dialog", "aria-modal": "true", "aria-label": "Assistant IA" },
+        h("div", { class: "sh" }, h("div", { class: "who" }, avatar(o.company, 42), h("div", {}, h("h3", {}, o.title || "Offre"), h("p", {}, place(o)))),
+          h("button", { class: "x", "aria-label": "Fermer", onclick: close }, "×")),
+        seg, out, tools));
+    document.body.append(backdrop);
+  }
+
+  /* ======================= Favoris ======================= */
+  let savedFilter = "all";
+  function csvEscape(v) { const t = String(v ?? ""); return /[";\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; }
+  function exportCsv() {
+    const head = ["Statut", "Poste", "Entreprise", "Lieu", "Source", "Compatibilité %", "Postulé le", "Enregistrée le", "Lien", "Note"];
+    const rows = state.saved.map((o) => [statusName(o.status), o.title, o.company, o.location, srcLabel(o.source), o.score, o.applied_at, o.saved_at, o.url, o.note].map(csvEscape).join(";"));
+    const blob = new Blob(["\ufeff" + [head.join(";"), ...rows].join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob), a = h("a", { href: url, download: "DataSwipe_candidatures.csv" });
+    document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+  }
+  function savedTile(o) {
+    const url = safeUrl(o.url), st = o.status || "todo";
+    const set = (patch) => { Object.assign(o, patch); persistSaved(); };
+    const statusSel = h("select", { "aria-label": "Statut de la candidature", onchange: (e) => {
+      const v = e.target.value; set({ status: v, applied_at: v === "todo" ? null : (o.applied_at || todayIso()) }); renderSaved(); } },
+      STATUS.map(([k, t]) => h("option", { value: k, selected: k === st }, t)));
+    return h("article", { class: "oc" },
+      h("div", { class: "top3" }, avatar(o.company, 40), h("div", { style: "min-width:0" }, h("h4", {}, o.title || "Offre"), h("p", { class: "sub" }, place(o))),
+        h("span", { class: "pct " + tier(o.score), "aria-label": `Compatibilité ${o.score} pour cent` }, Math.round(o.score) + "%")),
+      factTags(o),
+      h("label", { class: "stat" }, "Statut", statusSel),
+      o.applied_at ? h("label", { class: "stat" }, "Date de candidature", h("input", { type: "date", value: o.applied_at, max: todayIso(), onchange: (e) => set({ applied_at: e.target.value || null }) })) : null,
+      h("label", { class: "stat" }, "Note", h("input", { type: "text", maxlength: "300", placeholder: "Contact, relance, salaire annoncé…", value: o.note || "", onchange: (e) => set({ note: e.target.value }) })),
+      h("div", { class: "bar-row" },
+        h("button", { class: "mini p", onclick: () => openAssist(o) }, "Assistant IA"),
+        h("button", { class: "mini", onclick: () => { unsave(o); renderSaved(); } }, "Retirer"),
+        url ? h("a", { class: "mini", href: url, target: "_blank", rel: "noopener" }, "Voir l’offre") : null));
+  }
+  function renderSaved() {
+    const v = $("#view-saved"); v.replaceChildren();
+    const wrap = h("div", { class: "wrap" }, h("h3", { class: "page" }, "Mes favoris et candidatures"));
+    if (!state.saved.length) wrap.append(h("div", { class: "empty" }, h("h2", {}, "Aucun favori pour l’instant"), h("p", {}, "Glissez une offre vers la droite, ou touchez Garder, pour la retrouver ici et suivre votre candidature."),
+      h("button", { class: "btn primary", onclick: () => showTab("discover") }, "Parcourir les offres")));
+    else {
+      const count = (k) => k === "all" ? state.saved.length : state.saved.filter((o) => (o.status || "todo") === k).length;
+      if (savedFilter !== "all" && !count(savedFilter)) savedFilter = "all";
+      wrap.append(h("div", { class: "pills", role: "group", "aria-label": "Filtrer par statut" },
+        [["all", "Toutes"], ...STATUS].filter(([k]) => k === "all" || count(k)).map(([k, t]) =>
+          h("button", { class: "pill", "aria-pressed": String(savedFilter === k), onclick: () => { savedFilter = k; renderSaved(); } }, t, h("b", {}, count(k)))),
+        h("button", { class: "mini", style: "margin-left:auto", onclick: exportCsv }, "Exporter en CSV")));
+      wrap.append(h("div", { class: "grid" }, state.saved.filter((o) => savedFilter === "all" || (o.status || "todo") === savedFilter).map(savedTile)));
+    }
+    v.append(wrap);
+  }
+
+  /* ======================= Profil ======================= */
+  function hbar(label, value, max, cls, suffix) {
+    return h("div", { class: "hb " + (cls || "") }, h("span", {}, label), h("div", { class: "t" }, h("i", { style: `width:${Math.min(100, Math.max(6, (value / max) * 100))}%` })), h("span", {}, suffix || value));
+  }
+  function renderProfile() {
+    const v = $("#view-profile"); v.replaceChildren();
+    const wrap = h("div", { class: "wrap" }, h("h3", { class: "page" }, "Mon profil"));
+    if (!state.cvSkills.length) {
+      wrap.append(h("div", { class: "empty" }, h("h2", {}, "Pas encore de CV analysé"), h("p", {}, "Déposez votre CV pour voir vos compétences et celles à développer."),
+        h("button", { class: "btn primary", onclick: () => showTab("discover") }, "Déposer mon CV")));
+      return v.append(wrap);
+    }
+    const byCat = {}; state.cvSkills.forEach((s) => { const c = state.cats[s] || "Autres"; (byCat[c] = byCat[c] || []).push(s); });
+    const cats = Object.entries(byCat).sort((a, b) => b[1].length - a[1].length), maxC = cats[0][1].length;
+    const miss = {}; state.offers.forEach((o) => (o.missing_skills || []).forEach((s) => { miss[s] = (miss[s] || 0) + 1; }));
+    const top = Object.entries(miss).sort((a, b) => b[1] - a[1]).slice(0, 8), maxM = top.length ? top[0][1] : 1;
+
+    wrap.append(h("div", { class: "facts" },
+      h("div", { class: "fact" }, h("b", {}, state.cvSkills.length), h("span", {}, "compétences détectées")),
+      h("div", { class: "fact" }, h("b", {}, fr(state.total)), h("span", {}, "offres comparées")),
+      h("div", { class: "fact" }, h("b", {}, state.saved.length), h("span", {}, "offres en favoris"))),
+      h("div", { class: "two" },
+        h("div", { class: "panel" }, h("h3", {}, "Vos compétences par domaine"), cats.map(([c, l]) => hbar(c, l.length, maxC))),
+        h("div", { class: "panel" }, h("h3", {}, "À développer en priorité"),
+          top.length ? [top.map(([s, n]) => hbar(s, n, maxM, "g", `${n} / ${state.offers.length}`)),
+            h("p", { class: "hint", style: "font-size:13px;margin-top:10px" }, "Compétences qui manquent le plus souvent dans les offres qui vous correspondent le mieux.")]
+          : h("p", { class: "hint" }, "Aucune compétence manquante dans vos meilleures offres."))),
+      h("div", { class: "panel", style: "margin-top:14px" }, h("h3", {}, state.file ? `Compétences trouvées dans ${state.file.name}` : "Compétences trouvées dans votre CV"), chips(state.cvSkills, "ok", 200)),
+      h("p", { style: "margin-top:6px" }, h("button", { class: "btn ghost", onclick: () => {
+        state.offers = []; state.matching = 0; state.filtersOpen = false; state.cvSkills = []; state.cvText = ""; state.file = null; state.idx = 0; state.cats = {}; cache.clear(); showTab("discover");
+      } }, "Changer de CV")));
+    v.append(wrap);
+  }
+
+  /* ======================= Démarrage ======================= */
+  checkHealth(); updateBadge(); showTab("discover");
+})();
+</script>
+</body>
+</html>

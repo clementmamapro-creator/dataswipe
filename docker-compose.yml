@@ -1,0 +1,112 @@
+# Ports publiés uniquement sur 127.0.0.1 (le PC lui-même) : rien n'est joignable depuis le réseau.
+# PostgreSQL (données job_offers) + Airflow (orchestration) + API FastAPI (Sprint 4).
+# Tous les services (hors airflow-init, tâche ponctuelle) redémarrent automatiquement
+# avec Docker (restart: unless-stopped) — à condition que Docker Desktop démarre à
+# l'ouverture de session Windows (Settings > General > "Start Docker Desktop when you sign in").
+
+x-airflow-common: &airflow-common
+  image: apache/airflow:2.9.3
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__SCHEDULER__SCHEDULER_ZOMBIE_TASK_THRESHOLD: "1200"
+    AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT: "300"
+    PYTHONPATH: /opt/airflow
+    DATASWIPE_POSTGRES_DSN: "host=postgres dbname=dataswipe user=dataswipe password=changeme"
+    FRANCE_TRAVAIL_CLIENT_ID: ${FRANCE_TRAVAIL_CLIENT_ID}
+    FRANCE_TRAVAIL_CLIENT_SECRET: ${FRANCE_TRAVAIL_CLIENT_SECRET}
+    # Optionnel : sujet ntfy.sh pour les alertes push (laisser vide pour désactiver)
+    NTFY_TOPIC: ${NTFY_TOPIC:-}
+    _PIP_ADDITIONAL_REQUIREMENTS: "requests==2.32.3 beautifulsoup4==4.12.3 python-dotenv==1.0.1 psycopg2-binary==2.9.9"
+  volumes:
+    - ./pipeline:/opt/airflow/pipeline
+    - ./pipeline/dags:/opt/airflow/dags
+    - ./powerbi_export:/opt/airflow/exports # CSV générés pour Power BI
+    - airflow_data:/opt/airflow/data
+    - airflow_logs:/opt/airflow/logs
+  depends_on:
+    airflow-postgres:
+      condition: service_healthy
+
+services:
+  # Base DataSwipe : volontairement non publiée sur le PC (Airflow et l'API y accèdent
+  # par le réseau interne Docker ; pour psql : docker-compose exec postgres psql ...).
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dataswipe
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: dataswipe
+    volumes:
+      - dataswipe_pgdata:/var/lib/postgresql/data
+
+  airflow-postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "airflow" ]
+      interval: 5s
+      retries: 5
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    user: "0:0"
+    command:
+      - -c
+      - |
+        mkdir -p /opt/airflow/data /opt/airflow/exports
+        chmod -R 777 /opt/airflow/data /opt/airflow/exports
+        su airflow -c "airflow db migrate"
+        su airflow -c "airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com"
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    restart: unless-stopped
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  # Sprint 4 — API FastAPI exposant le matching et l'assistance IA.
+  # Tourne dans un conteneur Linux (comme Airflow) pour éviter les problèmes
+  # de compilation de psycopg2-binary rencontrés sous Windows/Python 3.14.
+  api:
+    build:
+      context: .
+      dockerfile: pipeline/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATASWIPE_POSTGRES_DSN: "host=postgres dbname=dataswipe user=dataswipe password=changeme"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      - postgres
+    volumes:
+      - ./pipeline:/app/pipeline
+
+volumes:
+  dataswipe_pgdata:
+  airflow_pgdata:
+  airflow_data:
+  airflow_logs:
