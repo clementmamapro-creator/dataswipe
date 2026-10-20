@@ -31,6 +31,8 @@ RÈGLES ABSOLUES (leur violation rend le document inutilisable) :
 6. CHRONOLOGIE : respecte l'ordre antéchronologique et les dates du CV ; ne mélange pas les employeurs (ne dis pas
    « puis en agence » pour une expérience antérieure) ; deux postes simultanés restent présentés comme tels.
 
+FORMAT DES COMPÉTENCES : une seule puce par catégorie, au format « - **Catégorie** : compétence 1 · compétence 2 · … » ; jamais une puce par compétence.
+
 STRUCTURE (Markdown) :
 ## Profil — 2 à 3 phrases honnêtes : niveau réel, domaine, ce qui correspond à l'offre.
 ## Compétences clés — regroupées par catégorie, ordonnées selon l'offre, uniquement celles du CV.
@@ -48,6 +50,37 @@ def _strip_header(text: str) -> str:
     return "\n".join(lines).strip()
 
 
+def _compact_skills(body: str) -> str:
+    """Section « Compétences » : une ligne par catégorie (« - **Catégorie** : a · b · c »), jamais une puce par
+    compétence (qui gonfle le CV de plusieurs pages). Corrige la sortie de l'IA de façon déterministe."""
+    lines, out, i = body.split("\n"), [], 0
+    in_sk = False
+    while i < len(lines):
+        ln = lines[i]
+        if ln.startswith("## "):
+            in_sk = bool(re.match(r"##\s+comp[ée]tences", ln, re.I))
+        if in_sk and re.match(r"###\s+", ln):
+            cat = re.sub(r"^###\s+|\*+", "", ln).strip().rstrip(":")
+            items, j = [], i + 1
+            while j < len(lines) and (not lines[j].strip() or re.match(r"\s*[-*•]\s+", lines[j])):
+                if lines[j].strip():
+                    items.append(re.sub(r"^\s*[-*•]\s+", "", lines[j]).strip())
+                j += 1
+            if items:
+                out.append(f"- **{cat}** : " + " · ".join(items)); i = j; continue
+        if in_sk and re.match(r"\*\*[^*]+\*\*\s*:?\s*$", ln.strip()):   # catégorie en gras seule sur sa ligne
+            cat = ln.strip().strip("*").rstrip(":").strip()
+            items, j = [], i + 1
+            while j < len(lines) and (not lines[j].strip() or re.match(r"\s*[-*•]\s+", lines[j])):
+                if lines[j].strip():
+                    items.append(re.sub(r"^\s*[-*•]\s+", "", lines[j]).strip())
+                j += 1
+            if items:
+                out.append(f"- **{cat}** : " + " · ".join(items)); i = j; continue
+        out.append(ln); i += 1
+    return "\n".join(out)
+
+
 def adapt_cv(cv_text: str, offer, user: dict | None = None) -> str:
     user = profile.clean_user(user)
     f = profile.facts(cv_text, offer, user)
@@ -55,6 +88,7 @@ def adapt_cv(cv_text: str, offer, user: dict | None = None) -> str:
     prompt = f"""FAITS CALCULÉS (fiables, à respecter) :
 - Nom (imposé, à utiliser tel quel) : {f['name'] or 'non détecté'}
 - Titre professionnel actuel indiqué par le candidat : {user.get('title') or 'non précisé'}
+- Précisions du candidat, PRIORITAIRES sur le CV (corrections, limites à respecter) : {user.get('notes') or 'aucune'}
 - Expérience professionnelle détectée : {f['years_label']} — {f['wording']}
 - Poste visé : {f['target']} chez {f['company'] or 'entreprise non précisée'}
 
@@ -65,5 +99,5 @@ CV D'ORIGINE :
 {cv_text}
 
 Rédige le CV adapté (sans l'en-tête nom/poste) en respectant toutes les règles."""
-    body = _strip_header(_llm.complete(SYSTEM, prompt, max_tokens=6000, temperature=0.2))
+    body = _compact_skills(_strip_header(_llm.complete(SYSTEM, prompt, max_tokens=6000, temperature=0.2)))
     return profile.cv_header(f, profile.contacts(cv_text, user)) + "\n" + body

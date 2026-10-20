@@ -21,7 +21,8 @@ RÈGLES ABSOLUES :
    je devrai… », « bien que mon profil soit junior comparé aux X ans demandés » ni aucune phrase d'excuse ou d'auto-critique.
    Ne cite pas le nombre d'années demandé par l'offre. Si une compétence demandée manque, n'en parle pas, ou au plus
    en une courte phrase tournée vers l'avenir et appuyée par la formation du CV.
-6. RELECTURE : accords (« ma rigueur », « mes connaissances … constituent »), conjugaison et ponctuation parfaits."""
+6. DIPLÔMES : n'écris « diplômé », « titulaire » ou « mon Master » que si le diplôme est obtenu ; sinon « mon Mastère en cours » ou « ma formation en cours ».
+7. RELECTURE : accords (« ma rigueur », « mes connaissances … constituent »), conjugaison et ponctuation parfaits."""
 
 
 def generate_cover_letter(cv_text: str, offer, user: dict | None = None) -> str:
@@ -31,6 +32,7 @@ def generate_cover_letter(cv_text: str, offer, user: dict | None = None) -> str:
     prompt = f"""FAITS CALCULÉS :
 - Nom du candidat (imposé, pour la signature) : {f['name'] or 'non détecté'}
 - Titre professionnel actuel indiqué par le candidat : {user.get('title') or 'non précisé'}
+- Précisions du candidat, PRIORITAIRES sur le CV (corrections, limites à respecter) : {user.get('notes') or 'aucune'}
 - Expérience : {f['years_label']} — {f['wording']}
 - Poste visé : {f['target']} chez {f['company'] or 'entreprise non précisée'}
 

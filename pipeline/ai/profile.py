@@ -127,7 +127,7 @@ def _get(offer, *keys) -> str:
     return ""
 
 
-USER_KEYS = ("first_name", "last_name", "email", "phone", "address", "postal_code", "city", "linkedin", "website", "title", "level")
+USER_KEYS = ("first_name", "last_name", "email", "phone", "address", "postal_code", "city", "linkedin", "website", "title", "level", "notes")
 LEVELS = {"junior": "profil junior / en début de carrière (alternance et stages inclus)",
           "confirmé": "profil confirmé de 3 à 6 ans d'expérience (jamais « senior »)",
           "senior": "profil expérimenté de plus de 6 ans"}
@@ -141,7 +141,7 @@ def clean_user(user) -> dict:
     for k in USER_KEYS:
         v = user.get(k)
         if isinstance(v, str):
-            v = re.sub(r"[\r\n\t]+", " ", v).strip()[:120]
+            v = re.sub(r"[\r\n\t]+", " ", v).strip()[: 700 if k == "notes" else 120]
             if v:
                 out[k] = v
     if out.get("level") not in LEVELS:

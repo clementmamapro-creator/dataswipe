@@ -295,6 +295,7 @@ h3.page { font: 800 clamp(26px, 5vw, 34px)/1.1 var(--display); letter-spacing: -
 .paper .pphoto { float: right; width: 84px; height: 84px; border-radius: 8px; object-fit: cover; margin: 0 0 8px 14px; }
 .pform { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
 .pform label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); }
+.pform textarea { display: block; width: 100%; margin-top: 4px; font: inherit; font-weight: 400; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; resize: vertical; }
 .pform input, .pform select { display: block; width: 100%; margin-top: 4px; font: inherit; font-weight: 400; color: var(--ink); background: var(--bg);
   border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
 .pform .full { grid-column: 1 / -1; }
@@ -985,9 +986,13 @@ h3.page { font: 800 clamp(26px, 5vw, 34px)/1.1 var(--display); letter-spacing: -
     const lvl = h("select", {}, [["", "Calcul automatique à partir de mon CV"], ["junior", "Junior (moins de 3 ans)"], ["confirmé", "Confirmé (3 à 6 ans)"], ["senior", "Senior (plus de 6 ans)"]]
       .map(([v, t]) => h("option", { value: v, selected: (state.profile.level || "") === v ? "selected" : null }, t)));
     lvl.addEventListener("change", () => { if (lvl.value) state.profile.level = lvl.value; else delete state.profile.level; save(); toast("Enregistré"); });
+    const notes = h("textarea", { rows: "3", maxlength: "700", placeholder: "Ex. : mon projet DataSwipe n’utilise ni dbt ni spaCy ; Power BI lit des exports CSV. Diplôme attendu en décembre 2026." });
+    notes.value = state.profile.notes || "";
+    notes.addEventListener("change", () => { const v = notes.value.trim(); if (v) state.profile.notes = v; else delete state.profile.notes; save(); toast("Enregistré"); });
     return h("div", { class: "panel", style: "margin-bottom:14px" }, h("h3", {}, "Mes informations pour les documents"),
       h("p", { class: "hint", style: "font-size:13px;margin:0 0 12px" }, "Elles sont reprises à l’identique dans l’en-tête de vos CV et lettres. Elles restent dans votre navigateur ; elles ne sont envoyées qu’avec une demande à l’assistant. Tout est facultatif."),
-      h("div", { class: "pform" }, inputs, h("label", { class: "full" }, "Niveau d’expérience annoncé dans les documents", lvl)),
+      h("div", { class: "pform" }, inputs, h("label", { class: "full" }, "Niveau d’expérience annoncé dans les documents", lvl),
+        h("label", { class: "full" }, "Précisions à respecter dans mes documents (facultatif) — l’IA les applique en priorité sur le CV", notes)),
       h("div", { style: "margin-top:12px" }, photoRow(() => {})),
       h("p", { style: "margin-top:12px" }, h("button", { class: "mini", onclick: () => { state.profile = {}; save(); renderProfile(); toast("Informations effacées"); } }, "Effacer mes informations")));
   }
