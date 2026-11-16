@@ -333,6 +333,45 @@ h3.page { font: 800 clamp(26px, 5vw, 34px)/1.1 var(--display); letter-spacing: -
 (() => {
   "use strict";
 
+  /* ======================= Code d'accès (si le serveur en exige un) ======================= */
+  const _fetch = window.fetch.bind(window);
+  const GUARDED = /^\/(match|search|assist|export)(\?|$)/;
+  const savedCode = () => { try { return sessionStorage.getItem("ds_code") || ""; } catch (e) { return ""; } };
+  function askCode(wrong) {
+    return new Promise(resolve => {
+      const box = document.createElement("div");
+      box.setAttribute("role", "dialog");
+      box.style.cssText = "position:fixed;inset:0;background:rgba(17,20,43,.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px";
+      box.innerHTML = '<form style="background:#fff;color:#11142b;border-radius:14px;padding:22px;max-width:340px;width:100%;font:15px system-ui,sans-serif">'
+        + '<b style="font-size:17px">Code d\u2019acc\u00e8s</b>'
+        + '<p style="margin:8px 0 12px;color:#555">' + (wrong ? "Code incorrect. R\u00e9essayez." : "Cette instance est prot\u00e9g\u00e9e. Saisissez le code fourni.") + '</p>'
+        + '<input type="password" autocomplete="off" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #bbb;border-radius:8px;font-size:15px">'
+        + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">'
+        + '<button type="button" data-x style="padding:9px 14px;border:0;background:#eee;border-radius:8px;cursor:pointer">Annuler</button>'
+        + '<button type="submit" style="padding:9px 14px;border:0;background:#2f3bff;color:#fff;border-radius:8px;cursor:pointer">Valider</button></div></form>';
+      document.body.appendChild(box);
+      const input = box.querySelector("input");
+      input.focus();
+      const done = v => { box.remove(); resolve(v); };
+      box.querySelector("[data-x]").onclick = () => done(null);
+      box.querySelector("form").onsubmit = e => { e.preventDefault(); done(input.value); };
+    });
+  }
+  window.fetch = async (url, opts = {}) => {
+    if (!GUARDED.test(String(url))) return _fetch(url, opts);
+    const send = code => _fetch(url, { ...opts, headers: { ...(opts.headers || {}), ...(code ? { "X-Access-Code": code } : {}) } });
+    let r = await send(savedCode());
+    let wrong = false;
+    while (r.status === 401) {
+      const code = await askCode(wrong);
+      if (code === null) return r;
+      try { sessionStorage.setItem("ds_code", code); } catch (e) { /* ignoré */ }
+      wrong = true;
+      r = await send(code);
+    }
+    return r;
+  };
+
   /* ======================= Utilitaires ======================= */
   const $ = (s) => document.querySelector(s);
   const store = {

@@ -14,7 +14,7 @@ x-airflow-common: &airflow-common
     AIRFLOW__SCHEDULER__SCHEDULER_ZOMBIE_TASK_THRESHOLD: "1200"
     AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT: "300"
     PYTHONPATH: /opt/airflow
-    DATASWIPE_POSTGRES_DSN: "host=postgres dbname=dataswipe user=dataswipe password=changeme"
+    DATASWIPE_POSTGRES_DSN: "host=postgres dbname=dataswipe user=dataswipe password=${DATASWIPE_DB_PASSWORD:-changeme}"
     FRANCE_TRAVAIL_CLIENT_ID: ${FRANCE_TRAVAIL_CLIENT_ID}
     FRANCE_TRAVAIL_CLIENT_SECRET: ${FRANCE_TRAVAIL_CLIENT_SECRET}
     # Optionnel : sujet ntfy.sh pour les alertes push (laisser vide pour désactiver)
@@ -38,7 +38,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: dataswipe
-      POSTGRES_PASSWORD: changeme
+      POSTGRES_PASSWORD: ${DATASWIPE_DB_PASSWORD:-changeme}
       POSTGRES_DB: dataswipe
     volumes:
       - dataswipe_pgdata:/var/lib/postgresql/data
@@ -67,7 +67,7 @@ services:
         mkdir -p /opt/airflow/data /opt/airflow/exports
         chmod -R 777 /opt/airflow/data /opt/airflow/exports
         su airflow -c "airflow db migrate"
-        su airflow -c "airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com"
+        su airflow -c "airflow users create --username admin --password \"${AIRFLOW_ADMIN_PASSWORD:-admin}\" --firstname Admin --lastname User --role Admin --email admin@example.com"
 
   airflow-webserver:
     <<: *airflow-common
@@ -96,8 +96,11 @@ services:
       dockerfile: pipeline/api/Dockerfile
     restart: unless-stopped
     environment:
-      DATASWIPE_POSTGRES_DSN: "host=postgres dbname=dataswipe user=dataswipe password=changeme"
+      DATASWIPE_POSTGRES_DSN: "host=postgres dbname=dataswipe user=dataswipe password=${DATASWIPE_DB_PASSWORD:-changeme}"
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # Sécurité (pipeline/api/security.py) : vide = pas de code d'accès (usage local)
+      ACCESS_CODE: ${ACCESS_CODE:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:

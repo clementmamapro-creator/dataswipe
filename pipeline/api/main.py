@@ -27,7 +27,6 @@ from pathlib import Path
 from typing import Literal, Optional
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -40,7 +39,7 @@ from ..matching.cv_parser import parse_cv
 from ..matching.extract_skills import extract_skills, get_offer_skills
 from ..matching.scoring import compute_match_score
 from ..matching.skills_taxonomy import SKILLS_TAXONOMY
-from . import catalog, db, export, limits, ranking
+from . import catalog, db, export, limits, ranking, security
 from .schemas import AssistRequest, AssistResponse
 
 log = logging.getLogger("uvicorn.error")
@@ -51,16 +50,10 @@ SKILL_CATEGORIES = {skill: category for category, skills in SKILLS_TAXONOMY.item
 
 app = FastAPI(title="DataSwipe API", version="0.3.0")
 
-# CORS ouvert en développement — à restreindre avant toute mise en production
-# réelle (Sprint 8, sécurité). L'interface web étant servie par cette même API
-# (même origine), elle n'en a pas besoin ; il reste utile pour des tests depuis
-# un autre site ou une future app native.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Durcissement (security.py) : code d'accès optionnel (ACCESS_CODE), CORS limité
+# aux origines de CORS_ORIGINS (par défaut l'application elle-même), limitation des
+# essais erronés et en-têtes de sécurité.
+security.install(app)
 
 
 @app.on_event("startup")
